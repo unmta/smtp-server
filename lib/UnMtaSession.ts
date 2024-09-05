@@ -1,6 +1,6 @@
 import { EnvelopeAddress } from './EmailAddress';
 
-export class SMTPSession {
+export class UnMtaSession {
   // The current phase of the SMTP session
   public id: number; // A unique identifier for the session
   public phase: 'connection' | 'helo' | 'sender' | 'recipient' | 'data' | 'termination';

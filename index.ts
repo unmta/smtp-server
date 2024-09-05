@@ -1,10 +1,10 @@
-import { SMTPServer } from './lib/SMTPServer';
-import { pluginManager } from './lib/SMTPPlugin';
+import { UnMtaServer } from './lib/UnMtaServer';
+import { unMtaPluginManager } from './lib/UnMtaPlugin';
 import emailLoggerPlugin from './tmpPlugin'; // Import the sample plugin
 
 // Load the plugins
-pluginManager.loadPlugins([emailLoggerPlugin]);
+unMtaPluginManager.loadPlugins([emailLoggerPlugin]);
 
 // Start the SMTP server
-const server = new SMTPServer(pluginManager);
+const server = new UnMtaServer(unMtaPluginManager);
 server.start();
