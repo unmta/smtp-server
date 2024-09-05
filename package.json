@@ -1,0 +1,44 @@
+{
+  "name": "unmta-smtp-server",
+  "version": "0.0.1",
+  "description": "A fast, modern, lightweight SMTP server, easily extendable with TypeScript and JavaScript.",
+  "main": "index.ts",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "smtp",
+    "smtp-server",
+    "mail-server",
+    "email",
+    "typescript",
+    "nodejs",
+    "email-server",
+    "lightweight",
+    "extendable",
+    "modern",
+    "mail",
+    "email-processing",
+    "network",
+    "protocol",
+    "simple-smtp",
+    "customizable",
+    "open-source"
+  ],
+  "author": "Dan Stevens",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "address-rfc2821": "^2.1.2",
+    "address-rfc2822": "^2.2.2",
+    "winston": "^3.14.2"
+  }
+}
