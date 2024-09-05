@@ -7,9 +7,10 @@ import { EnvelopeAddress } from './EmailAddress';
 import logger from './Logger';
 
 // TODO default should be to reject for mail from/rcpt to?
+// TODO add RSET and NOOP commands and plugin suppport
 
 // A Map to keep track of sessions keyed by socket
-let sessionCounter = 0;
+let sessionCounter = 1;
 const sessions = new Map<number, UnMtaSession>();
 
 // Data structure for the socket (and internal session store)
@@ -60,7 +61,6 @@ export class UnMtaServer {
           smtp.resetTimeout(sock); // Start the idle timeout
 
           logger.debug(`Client connected from ${sock.remoteAddress}`);
-          console.log('<<<>>>', sock.data);
           await smtp.plugins.executeConnectHooks(session);
           smtp.write(sock, `220 ${hostname().toLowerCase()} ESMTP unMta v${version} ready`);
         },
@@ -119,12 +119,13 @@ export class UnMtaServer {
           }
         },
         async close(sock) {
-          logger.debug('Client disconnected'); // TODO add more info about client (ip, etc.)
-
           // Trigger executeCloseHooks and clean up the session when the connection is closed
           if (sock.data?.id) {
             const session = sessions.get(sock.data.id);
-            if (session) await smtp.plugins.executeCloseHooks(session);
+            if (session) {
+              await smtp.plugins.executeCloseHooks(session);
+              logger.debug(`Client ${sock.remoteAddress} disconnected. ${Date.now() - session.startTime}ms`); // TODO add more info about client (ip, etc.)
+            }
             sessions.delete(sock.data.id);
           }
           if (sock.data?.timeout) {
@@ -214,7 +215,6 @@ export class UnMtaServer {
     // Check if the data ends with a single dot '.'
     sock.data.lastDataChunks.push(data.toString());
     if (sock.data.lastDataChunks.length > 3) sock.data.lastDataChunks.shift();
-    console.log(sock.data);
     if (sock.data.lastDataChunks.join('').match(/\r\n.\r\n$/)) {
       this.handleDataEnd(sock, session);
     }
@@ -254,7 +254,7 @@ export class UnMtaServer {
     sock.data.timeout = setTimeout(() => {
       logger.debug(`Session ${sock.data.id} timed out due to inactivity.`); // TODO add more info about client (ip, etc.)
       this.write(sock, '421 4.4.2 Connection timed out due to inactivity', true);
-    }, 150000);
+    }, 15000);
   }
 
   private write(sock: Socket<SocketData>, message: string, end = false) {
