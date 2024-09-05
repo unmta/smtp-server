@@ -1,14 +1,21 @@
+import type { UnMtaSession } from './UnMtaSession';
+
 // TODO add parameters to the hooks
+// Allow ability to read session data (and write to it within a certain scope)
+// Add RSET
+
+// Add ability to modify the response to the client
 export interface UnMtaPlugin {
-  onConnect?: () => Promise<void> | void;
-  onHelo?: () => Promise<void> | void;
-  onMailFrom?: () => Promise<void> | void;
-  onRcptTo?: () => Promise<void> | void;
-  onData?: () => Promise<void> | void;
-  onQuit?: () => Promise<void> | void;
-  onClose?: () => Promise<void> | void;
-  onHelp?: () => Promise<void> | void;
-  onUnknown?: () => Promise<void> | void;
+  onConnect?: (session: UnMtaSession) => Promise<void> | void;
+  onHelo?: (session: UnMtaSession) => Promise<void> | void;
+  onMailFrom?: (session: UnMtaSession) => Promise<void> | void;
+  onRcptTo?: (session: UnMtaSession) => Promise<void> | void;
+  onDataStart?: (session: UnMtaSession) => Promise<void> | void;
+  onDataEnd?: (session: UnMtaSession) => Promise<void> | void;
+  onQuit?: (session: UnMtaSession) => Promise<void> | void;
+  onClose?: (session: UnMtaSession) => Promise<void> | void;
+  onHelp?: (session: UnMtaSession) => Promise<void> | void;
+  onUnknown?: (session: UnMtaSession) => Promise<void> | void;
 }
 
 class UnMtaPluginManager {
@@ -19,78 +26,87 @@ class UnMtaPluginManager {
     this.plugins.push(...plugins);
   }
 
-  async executeConnectHooks() {
+  async executeConnectHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onConnect) {
-        await plugin.onConnect();
+        await plugin.onConnect(session);
       }
     }
   }
 
-  async executeHeloHooks() {
+  async executeHeloHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelo) {
-        await plugin.onHelo();
+        await plugin.onHelo(session);
       }
     }
   }
 
   // Execute hooks for MAIL FROM
-  async executeMailFromHooks() {
+  async executeMailFromHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onMailFrom) {
-        await plugin.onMailFrom();
+        await plugin.onMailFrom(session);
       }
     }
   }
 
   // Execute hooks for RCPT TO
-  async executeRcptToHooks() {
+  async executeRcptToHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onRcptTo) {
-        await plugin.onRcptTo();
+        await plugin.onRcptTo(session);
       }
     }
   }
 
-  // Execute hooks for DATA
-  async executeDataHooks() {
+  // Execute hooks for DATA start
+  async executeDataStartHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
-      if (plugin.onData) {
-        await plugin.onData();
+      if (plugin.onDataStart) {
+        await plugin.onDataStart(session);
       }
     }
   }
 
-  async executeQuitHooks() {
+  // Execute hooks for DATA end
+  async executeDataEndHooks(session: UnMtaSession) {
+    for (const plugin of this.plugins) {
+      if (plugin.onDataEnd) {
+        await plugin.onDataEnd(session);
+      }
+    }
+  }
+
+  async executeQuitHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onQuit) {
-        await plugin.onQuit();
+        await plugin.onQuit(session);
       }
     }
   }
 
   // Execute hooks for session close
-  async executeCloseHooks() {
+  async executeCloseHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onClose) {
-        await plugin.onClose();
+        await plugin.onClose(session);
       }
     }
   }
 
-  async executeHelpHooks() {
+  async executeHelpHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelp) {
-        await plugin.onHelp();
+        await plugin.onHelp(session);
       }
     }
   }
 
-  async executeUnknownHooks() {
+  async executeUnknownHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onUnknown) {
-        await plugin.onUnknown();
+        await plugin.onUnknown(session);
       }
     }
   }
