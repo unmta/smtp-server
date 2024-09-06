@@ -1,27 +1,13 @@
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
-import { UnMtaServer } from '../lib/UnMtaServer';
-import { naiveSmtpClient } from './lib/naiveSmtpClient';
-import { sleep } from 'bun';
+// Tests basic SMTP commands and responses
+
+import { describe, it, expect, beforeAll } from 'bun:test';
+import { naiveSmtpClient } from '../lib/naiveSmtpClient';
 
 const smtpClient = new naiveSmtpClient('localhost', 2525);
 
-let receivedData = '';
-
-// Start the SMTP server
-const server = new UnMtaServer();
-
-let client: any;
-let send: any;
-
 beforeAll(async () => {
-  server.start();
   await smtpClient.connect();
 });
-
-// afterAll(() => {
-//   // Stop the server after tests
-//   UnMtaServer.stop();
-// });
 
 describe('SMTP Server', async () => {
   it('should respond with a greeting message', async () => {

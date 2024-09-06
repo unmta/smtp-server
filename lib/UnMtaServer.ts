@@ -8,8 +8,6 @@ import logger from './Logger';
 
 // Enable plugins to modify the response to the client
 // Expose readable stream to session for data phase
-// add RSET, NOOP, VRFY commands and plugin suppport
-// Write tests
 // Convert writablestream into duplex or transform stream?
 // default should be to reject for mail from/rcpt to?
 // Add support for STARTTLS
@@ -30,7 +28,7 @@ interface SocketData {
 }
 
 class SmtpCommand {
-  private commands = ['HELO', 'EHLO', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'HELP'];
+  private commands = ['HELO', 'EHLO', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'RSET', 'HELP', 'NOOP', 'VRFY'];
 
   public message: string; // The raw message that was received
   public name: string | undefined; // The command that was received (HELO, MAIL FROM, etc.)
@@ -61,11 +59,7 @@ export class UnMtaServer {
       data: { id: 0, timeout: null, messageWriteStream: null, messageWriteStreamWriter: null, lastDataChunks: [] },
       socket: {
         async open(sock) {
-          // Always (re)initialize entire sock.data here. Assign a unique session ID to the socket
-          sock.data = { id: sessionCounter++, timeout: null, messageWriteStream: null, messageWriteStreamWriter: null, lastDataChunks: [] };
-          const session = new UnMtaSession(sock.data.id);
-          sessions.set(sock.data.id, session);
-          smtp.resetTimeout(sock); // Start the idle timeout
+          const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
 
           logger.debug(`Client connected from ${sock.remoteAddress}`);
           await smtp.plugins?.executeConnectHooks(session);
@@ -115,8 +109,24 @@ export class UnMtaServer {
             smtp.handleQuitCommand(sock, session);
             return;
           }
+          // Handle RSET command
+          if (command.name === 'RSET') {
+            smtp.handleRsetCommand(sock, session);
+            return;
+          }
+          // Handle HELP command
           if (command.name === 'HELP') {
             smtp.handleHelpCommand(sock, session);
+            return;
+          }
+          // Handle NOOP command
+          if (command.name === 'NOOP') {
+            smtp.handleNoopCommand(sock, session);
+            return;
+          }
+          // Handle VRFY command
+          if (command.name === 'VRFY') {
+            smtp.handleVrfyCommand(sock, session);
             return;
           }
           // Handle unknown commands
@@ -145,7 +155,29 @@ export class UnMtaServer {
     logger.info(`SMTP server is running on port ${port}`);
   }
 
+  // (Re)set the session state
+  private resetSession(sock: Socket<SocketData>, id: number, phase: 'connection' | 'helo' = 'connection', currentSession: UnMtaSession | null = null) {
+    const newConnection = !sock.data.id;
+    logger.debug(`${newConnection ? 'Setting' : 'Resetting'} session ${id} to ${phase} phase`);
+    if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
+    // Always (re)initialize entire sock.data here.
+    sock.data = { id: id, timeout: null, messageWriteStream: null, messageWriteStreamWriter: null, lastDataChunks: [] };
+    const session = new UnMtaSession(sock.data.id, phase, currentSession);
+    sessions.set(sock.data.id, session);
+    this.resetTimeout(sock); // Set the idle timeout
+    return session;
+  }
+
   private async handleHeloCommand(command: SmtpCommand, sock: Socket<SocketData>, session: UnMtaSession) {
+    if (!command.argument) {
+      this.write(sock, '501 domain/address required');
+      return;
+    }
+    // If we're past the helo phase, reset the session
+    if (session.phase !== 'connection' && session.phase !== 'helo') {
+      // TODO: Unlike RSET, this may need to also reset certain socket data points like ESMTP flags, etc
+      this.resetSession(sock, sock.data.id, 'connection', session);
+    }
     session.phase = 'helo';
 
     await this.plugins?.executeHeloHooks(session);
@@ -243,9 +275,29 @@ export class UnMtaServer {
     this.write(sock, '221 Bye', true);
   }
 
+  private async handleRsetCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+    // Only reset session if we're past the connection phase - otherwise there's nothing to reset
+    if (session.phase !== 'connection') {
+      await this.plugins?.executeRsetHooks(session);
+      this.resetSession(sock, sock.data.id, 'helo', session); // Reset the session state, AFTER the HELO phase
+      // TODO - if we store HELO/EHLO data, we need to NOT reset that
+    }
+    this.write(sock, '250 OK');
+  }
+
   private async handleHelpCommand(sock: Socket<SocketData>, session: UnMtaSession) {
     await this.plugins?.executeHelpHooks(session);
     this.write(sock, '214 See: https://unmta.com/');
+  }
+
+  private async handleNoopCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+    await this.plugins?.executeNoopHooks(session);
+    this.write(sock, '250 OK');
+  }
+
+  private async handleVrfyCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+    await this.plugins?.executeVrfyHooks(session);
+    this.write(sock, '252 Will not VRFY user, but may accept message and attempt delivery');
   }
 
   private async handleUnknownCommand(sock: Socket<SocketData>, session: UnMtaSession) {
@@ -253,11 +305,13 @@ export class UnMtaServer {
     this.write(sock, '500 Command not recognized');
   }
 
-  private resetTimeout(sock: Socket<SocketData>) {
+  private resetTimeout(sock: Socket<SocketData>, clearOnly = false) {
     // Clear the existing timeout if set
     if (sock.data?.timeout) {
       clearTimeout(sock.data.timeout);
     }
+
+    if (clearOnly) return; // Only clear the timeout, don't set a new one
 
     // Set a new timeout
     sock.data.timeout = setTimeout(() => {

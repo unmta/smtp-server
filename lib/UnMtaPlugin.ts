@@ -14,7 +14,10 @@ export interface UnMtaPlugin {
   onDataEnd?: (session: UnMtaSession) => Promise<void> | void;
   onQuit?: (session: UnMtaSession) => Promise<void> | void;
   onClose?: (session: UnMtaSession) => Promise<void> | void;
+  onRset?: (session: UnMtaSession) => Promise<void> | void;
   onHelp?: (session: UnMtaSession) => Promise<void> | void;
+  onNoop?: (session: UnMtaSession) => Promise<void> | void;
+  onVrfy?: (session: UnMtaSession) => Promise<void> | void;
   onUnknown?: (session: UnMtaSession) => Promise<void> | void;
 }
 
@@ -26,6 +29,7 @@ class UnMtaPluginManager {
     this.plugins.push(...plugins);
   }
 
+  // Execute hooks for CONNECT
   async executeConnectHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onConnect) {
@@ -34,6 +38,7 @@ class UnMtaPluginManager {
     }
   }
 
+  // Execute hooks for HELO
   async executeHeloHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelo) {
@@ -78,6 +83,7 @@ class UnMtaPluginManager {
     }
   }
 
+  // Execute hooks for QUIT
   async executeQuitHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onQuit) {
@@ -95,6 +101,16 @@ class UnMtaPluginManager {
     }
   }
 
+  // Execute hooks for RSET
+  async executeRsetHooks(session: UnMtaSession) {
+    for (const plugin of this.plugins) {
+      if (plugin.onRset) {
+        await plugin.onRset(session);
+      }
+    }
+  }
+
+  // Execute hooks for HELP
   async executeHelpHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelp) {
@@ -103,6 +119,25 @@ class UnMtaPluginManager {
     }
   }
 
+  // Execute hooks for NOOP
+  async executeNoopHooks(session: UnMtaSession) {
+    for (const plugin of this.plugins) {
+      if (plugin.onNoop) {
+        await plugin.onNoop(session);
+      }
+    }
+  }
+
+  // Execute hooks for VRFY
+  async executeVrfyHooks(session: UnMtaSession) {
+    for (const plugin of this.plugins) {
+      if (plugin.onVrfy) {
+        await plugin.onVrfy(session);
+      }
+    }
+  }
+
+  // Execute hooks for Unknown commands
   async executeUnknownHooks(session: UnMtaSession) {
     for (const plugin of this.plugins) {
       if (plugin.onUnknown) {
