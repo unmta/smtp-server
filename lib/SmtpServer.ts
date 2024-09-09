@@ -1,4 +1,5 @@
 import type { Socket } from 'bun';
+import unfig from '../unfig.toml';
 import { version } from '../package.json';
 import { hostname } from 'os';
 import { SmtpSession, smtpPluginManager, SmtpCommand } from './';
@@ -23,7 +24,7 @@ interface SocketData {
   timeout?: Timer | null;
   messageWriteStream: WritableStream | null;
   messageWriteStreamWriter: WritableStreamDefaultWriter<Uint8Array> | null;
-  lastDataChunks: string[]; // The last 3 chunks of data received from DATA phase. Used to detect end of data.
+  lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
 }
 
 export class SmtpServer {
@@ -34,11 +35,12 @@ export class SmtpServer {
   }
 
   // Start the server
-  public start(port = 2525) {
+  public start() {
     const smtp = this;
     const server = Bun.listen<SocketData>({
-      hostname: 'localhost',
-      port: port,
+      hostname: unfig.smtp.listen,
+      port: unfig.smtp.port,
+      // reusePort: true,
       data: { id: 0, timeout: null, messageWriteStream: null, messageWriteStreamWriter: null, lastDataChunks: [] },
       socket: {
         async open(sock) {
@@ -46,7 +48,7 @@ export class SmtpServer {
 
           logger.debug(`Client connected from ${sock.remoteAddress}`);
           await smtp.plugins?.executeConnectHooks(session);
-          smtp.write(sock, `220 ${hostname().toLowerCase()} ESMTP unMta v${version} ready`);
+          smtp.write(sock, `220 ${unfig.smtp.hostname || hostname().toLowerCase()} ESMTP unMta v${version} ready`);
         },
         data(sock, data) {
           smtp.resetTimeout(sock); // Reset the idle timeout whenever data is received
@@ -135,7 +137,7 @@ export class SmtpServer {
       },
     });
 
-    logger.info(`SMTP server is running on port ${port}`);
+    logger.info(`UnMTA SMTP server is running on ${unfig.smtp.listen}:${unfig.smtp.port}`);
   }
 
   // (Re)set the session state
@@ -235,10 +237,10 @@ export class SmtpServer {
   private async handleData(sock: Socket<SocketData>, session: SmtpSession, data: Buffer) {
     await sock.data.messageWriteStreamWriter?.write(data);
     // Check if the data ends with single dot '\r\n.\r\n'.
-    // We do this by keeping track of the last 5 characters of the last 3 chunks of data
-    // This enables telnet-style connections to send a \r\n, then a ., then another \r\n
+    // We do this by keeping track of the last 5 characters of the last 5 chunks of data
+    // This enables telnet-style connections to send a \r, \n, ., \r, \n
     sock.data.lastDataChunks.push(data.toString().slice(-5));
-    if (sock.data.lastDataChunks.length > 3) sock.data.lastDataChunks.shift();
+    if (sock.data.lastDataChunks.length > 5) sock.data.lastDataChunks.shift();
     if (sock.data.lastDataChunks.join('').match(/\r\n.\r\n$/)) {
       this.handleDataEnd(sock, session);
     }

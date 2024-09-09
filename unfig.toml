@@ -1,0 +1,8 @@
+[smtp]
+port=2525
+listen="localhost" # Use 0.0.0.0 to listen on all interfaces
+#hostname="your.mail.server" # Optional, defaults to the hostname of the machine
+
+#[logger] 
+
+#[plugins]
