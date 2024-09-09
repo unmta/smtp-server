@@ -1,36 +1,36 @@
-import type { UnMtaSession } from './UnMtaSession';
+import type { SmtpSession } from '.';
 
 // TODO add parameters to the hooks
 // Allow ability to read session data (and write to it within a certain scope)
 // Add RSET
 
 // Add ability to modify the response to the client
-export interface UnMtaPlugin {
-  onConnect?: (session: UnMtaSession) => Promise<void> | void;
-  onHelo?: (session: UnMtaSession) => Promise<void> | void;
-  onMailFrom?: (session: UnMtaSession) => Promise<void> | void;
-  onRcptTo?: (session: UnMtaSession) => Promise<void> | void;
-  onDataStart?: (session: UnMtaSession) => Promise<void> | void;
-  onDataEnd?: (session: UnMtaSession) => Promise<void> | void;
-  onQuit?: (session: UnMtaSession) => Promise<void> | void;
-  onClose?: (session: UnMtaSession) => Promise<void> | void;
-  onRset?: (session: UnMtaSession) => Promise<void> | void;
-  onHelp?: (session: UnMtaSession) => Promise<void> | void;
-  onNoop?: (session: UnMtaSession) => Promise<void> | void;
-  onVrfy?: (session: UnMtaSession) => Promise<void> | void;
-  onUnknown?: (session: UnMtaSession) => Promise<void> | void;
+export interface SmtpPlugin {
+  onConnect?: (session: SmtpSession) => Promise<void> | void;
+  onHelo?: (session: SmtpSession) => Promise<void> | void;
+  onMailFrom?: (session: SmtpSession) => Promise<void> | void;
+  onRcptTo?: (session: SmtpSession) => Promise<void> | void;
+  onDataStart?: (session: SmtpSession) => Promise<void> | void;
+  onDataEnd?: (session: SmtpSession) => Promise<void> | void;
+  onQuit?: (session: SmtpSession) => Promise<void> | void;
+  onClose?: (session: SmtpSession) => Promise<void> | void;
+  onRset?: (session: SmtpSession) => Promise<void> | void;
+  onHelp?: (session: SmtpSession) => Promise<void> | void;
+  onNoop?: (session: SmtpSession) => Promise<void> | void;
+  onVrfy?: (session: SmtpSession) => Promise<void> | void;
+  onUnknown?: (session: SmtpSession) => Promise<void> | void;
 }
 
-class UnMtaPluginManager {
-  private plugins: UnMtaPlugin[] = [];
+class SmtpPluginManager {
+  private plugins: SmtpPlugin[] = [];
 
   // Load plugins from configuration or dynamically
-  loadPlugins(plugins: UnMtaPlugin[]) {
+  loadPlugins(plugins: SmtpPlugin[]) {
     this.plugins.push(...plugins);
   }
 
   // Execute hooks for CONNECT
-  async executeConnectHooks(session: UnMtaSession) {
+  async executeConnectHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onConnect) {
         await plugin.onConnect(session);
@@ -39,7 +39,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for HELO
-  async executeHeloHooks(session: UnMtaSession) {
+  async executeHeloHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelo) {
         await plugin.onHelo(session);
@@ -48,7 +48,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for MAIL FROM
-  async executeMailFromHooks(session: UnMtaSession) {
+  async executeMailFromHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onMailFrom) {
         await plugin.onMailFrom(session);
@@ -57,7 +57,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for RCPT TO
-  async executeRcptToHooks(session: UnMtaSession) {
+  async executeRcptToHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onRcptTo) {
         await plugin.onRcptTo(session);
@@ -66,7 +66,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for DATA start
-  async executeDataStartHooks(session: UnMtaSession) {
+  async executeDataStartHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onDataStart) {
         await plugin.onDataStart(session);
@@ -75,7 +75,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for DATA end
-  async executeDataEndHooks(session: UnMtaSession) {
+  async executeDataEndHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onDataEnd) {
         await plugin.onDataEnd(session);
@@ -84,7 +84,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for QUIT
-  async executeQuitHooks(session: UnMtaSession) {
+  async executeQuitHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onQuit) {
         await plugin.onQuit(session);
@@ -93,7 +93,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for session close
-  async executeCloseHooks(session: UnMtaSession) {
+  async executeCloseHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onClose) {
         await plugin.onClose(session);
@@ -102,7 +102,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for RSET
-  async executeRsetHooks(session: UnMtaSession) {
+  async executeRsetHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onRset) {
         await plugin.onRset(session);
@@ -111,7 +111,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for HELP
-  async executeHelpHooks(session: UnMtaSession) {
+  async executeHelpHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelp) {
         await plugin.onHelp(session);
@@ -120,7 +120,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for NOOP
-  async executeNoopHooks(session: UnMtaSession) {
+  async executeNoopHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onNoop) {
         await plugin.onNoop(session);
@@ -129,7 +129,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for VRFY
-  async executeVrfyHooks(session: UnMtaSession) {
+  async executeVrfyHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onVrfy) {
         await plugin.onVrfy(session);
@@ -138,7 +138,7 @@ class UnMtaPluginManager {
   }
 
   // Execute hooks for Unknown commands
-  async executeUnknownHooks(session: UnMtaSession) {
+  async executeUnknownHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onUnknown) {
         await plugin.onUnknown(session);
@@ -147,4 +147,4 @@ class UnMtaPluginManager {
   }
 }
 
-export const unMtaPluginManager = new UnMtaPluginManager();
+export const smtpPluginManager = new SmtpPluginManager();

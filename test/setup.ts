@@ -1,8 +1,8 @@
 import { beforeAll, afterAll } from 'bun:test';
-import { UnMtaServer } from '../lib/UnMtaServer';
+import { SmtpServer } from '../lib/SmtpServer';
 
 // Start the SMTP server
-const server = new UnMtaServer();
+const server = new SmtpServer();
 
 beforeAll(async () => {
   server.start();
@@ -10,5 +10,5 @@ beforeAll(async () => {
 
 // afterAll(() => {
 //   // Stop the server after tests
-//   UnMtaServer.stop();
+//   SmtpResponse.stop();
 // });

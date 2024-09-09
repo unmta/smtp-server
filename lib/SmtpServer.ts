@@ -1,8 +1,7 @@
 import type { Socket } from 'bun';
 import { version } from '../package.json';
 import { hostname } from 'os';
-import { UnMtaSession } from './UnMtaSession';
-import { unMtaPluginManager } from './UnMtaPlugin';
+import { SmtpSession, smtpPluginManager, SmtpCommand } from './';
 import { EnvelopeAddress } from './EmailAddress';
 import logger from './Logger';
 
@@ -16,7 +15,7 @@ import logger from './Logger';
 
 // A Map to keep track of sessions keyed by socket
 let sessionCounter = 1;
-const sessions = new Map<number, UnMtaSession>();
+const sessions = new Map<number, SmtpSession>();
 
 // Data structure for the socket (and internal session store)
 interface SocketData {
@@ -27,26 +26,10 @@ interface SocketData {
   lastDataChunks: string[]; // The last 3 chunks of data received from DATA phase. Used to detect end of data.
 }
 
-class SmtpCommand {
-  private commands = ['HELO', 'EHLO', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'RSET', 'HELP', 'NOOP', 'VRFY'];
+export class SmtpServer {
+  private plugins: typeof smtpPluginManager | null;
 
-  public readonly message: string; // The raw message that was received
-  public readonly name: string | undefined; // The command that was received (HELO, MAIL FROM, etc.)
-  public readonly argument: string | undefined; // The argument that was received (email address, etc.)
-
-  constructor(data: Buffer) {
-    this.message = data.toString().trim();
-    this.name = this.commands.find((command) => this.message.toUpperCase().startsWith(command));
-    if (this.name) {
-      this.argument = this.message.slice(this.name.length).trim(); // Extract the argument
-    }
-  }
-}
-
-export class UnMtaServer {
-  private plugins: typeof unMtaPluginManager | null;
-
-  constructor(plugins: typeof unMtaPluginManager | null = null) {
+  constructor(plugins: typeof smtpPluginManager | null = null) {
     this.plugins = plugins;
   }
 
@@ -156,19 +139,19 @@ export class UnMtaServer {
   }
 
   // (Re)set the session state
-  private resetSession(sock: Socket<SocketData>, id: number, phase: 'connection' | 'helo' = 'connection', currentSession: UnMtaSession | null = null) {
+  private resetSession(sock: Socket<SocketData>, id: number, phase: 'connection' | 'helo' = 'connection', currentSession: SmtpSession | null = null) {
     const newConnection = !sock.data.id;
     logger.debug(`${newConnection ? 'Setting' : 'Resetting'} session ${id} to ${phase} phase`);
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
     sock.data = { id: id, timeout: null, messageWriteStream: null, messageWriteStreamWriter: null, lastDataChunks: [] };
-    const session = new UnMtaSession(sock.data.id, phase, currentSession);
+    const session = new SmtpSession(sock.data.id, phase, currentSession);
     sessions.set(sock.data.id, session);
     this.resetTimeout(sock); // Set the idle timeout
     return session;
   }
 
-  private async handleHeloCommand(command: SmtpCommand, sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleHeloCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (!command.argument) {
       this.write(sock, '501 domain/address required');
       return;
@@ -190,7 +173,7 @@ export class UnMtaServer {
     }
   }
 
-  private async handleMailFromCommand(command: SmtpCommand, sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleMailFromCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (session.phase !== 'helo') {
       this.write(sock, '503 Bad sequence of commands');
       return;
@@ -211,7 +194,7 @@ export class UnMtaServer {
     }
   }
 
-  private async handleRcptToCommand(command: SmtpCommand, sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleRcptToCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (session?.phase !== 'sender' && session?.phase !== 'recipient') {
       this.write(sock, '503 Bad sequence of commands');
       return;
@@ -233,7 +216,7 @@ export class UnMtaServer {
   }
 
   // Handle the DATA command
-  private async handleDataCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleDataCommand(sock: Socket<SocketData>, session: SmtpSession) {
     if (session.phase !== 'recipient') {
       this.write(sock, '503 Bad sequence of commands');
       return;
@@ -249,7 +232,7 @@ export class UnMtaServer {
   }
 
   // Handle incoming data stream
-  private async handleData(sock: Socket<SocketData>, session: UnMtaSession, data: Buffer) {
+  private async handleData(sock: Socket<SocketData>, session: SmtpSession, data: Buffer) {
     await sock.data.messageWriteStreamWriter?.write(data);
     // Check if the data ends with single dot '\r\n.\r\n'.
     // We do this by keeping track of the last 5 characters of the last 3 chunks of data
@@ -262,7 +245,7 @@ export class UnMtaServer {
   }
 
   // Handle the end of the data stream
-  private async handleDataEnd(sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleDataEnd(sock: Socket<SocketData>, session: SmtpSession) {
     await sock.data.messageWriteStreamWriter?.close();
     session.isDataMode = false; // Exit DATA mode
     session.phase = 'postdata';
@@ -270,12 +253,12 @@ export class UnMtaServer {
     this.write(sock, '250 Message accepted');
   }
 
-  private async handleQuitCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleQuitCommand(sock: Socket<SocketData>, session: SmtpSession) {
     await this.plugins?.executeQuitHooks(session);
     this.write(sock, '221 Bye', true);
   }
 
-  private async handleRsetCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleRsetCommand(sock: Socket<SocketData>, session: SmtpSession) {
     // Only reset session if we're past the connection phase - otherwise there's nothing to reset
     if (session.phase !== 'connection') {
       await this.plugins?.executeRsetHooks(session);
@@ -285,22 +268,22 @@ export class UnMtaServer {
     this.write(sock, '250 OK');
   }
 
-  private async handleHelpCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleHelpCommand(sock: Socket<SocketData>, session: SmtpSession) {
     await this.plugins?.executeHelpHooks(session);
     this.write(sock, '214 See: https://unmta.com/');
   }
 
-  private async handleNoopCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleNoopCommand(sock: Socket<SocketData>, session: SmtpSession) {
     await this.plugins?.executeNoopHooks(session);
     this.write(sock, '250 OK');
   }
 
-  private async handleVrfyCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleVrfyCommand(sock: Socket<SocketData>, session: SmtpSession) {
     await this.plugins?.executeVrfyHooks(session);
     this.write(sock, '252 Will not VRFY user, but may accept message and attempt delivery');
   }
 
-  private async handleUnknownCommand(sock: Socket<SocketData>, session: UnMtaSession) {
+  private async handleUnknownCommand(sock: Socket<SocketData>, session: SmtpSession) {
     await this.plugins?.executeUnknownHooks(session);
     this.write(sock, '500 Command not recognized');
   }

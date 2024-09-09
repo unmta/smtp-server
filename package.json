@@ -1,13 +1,22 @@
 {
-  "name": "unmta-smtp-server",
+  "name": "@unmta/smtp-server",
   "version": "0.0.1",
   "description": "A fast, modern, lightweight SMTP server, easily extendable with TypeScript and JavaScript.",
   "main": "index.ts",
+  "bun": {
+    "version": ">=1.1.26"
+  },
+  "engines": {
+    "bun": ">=1.1.26",
+    "node": "incompatible"
+  },
   "directories": {
     "lib": "lib"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "bun test",
+    "dev": "bun run index.ts --watch",
+    "start": "bun run index.ts"
   },
   "keywords": [
     "smtp",

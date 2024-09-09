@@ -29,7 +29,7 @@ const responses: { [key: number]: string } = {
   554: '',
 };
 
-abstract class UnMtaResponse {
+abstract class SmtpResponse {
   protected abstract code: number;
   protected message: string;
 
@@ -39,7 +39,7 @@ abstract class UnMtaResponse {
 }
 
 type HelpAcceptResponseCode = 211 | 214;
-export class HelpAcceptResponse extends UnMtaResponse {
+export class HelpAcceptResponse extends SmtpResponse {
   protected code: HelpAcceptResponseCode;
 
   constructor(code: HelpAcceptResponseCode = 214, message: string | null = null) {
@@ -49,7 +49,7 @@ export class HelpAcceptResponse extends UnMtaResponse {
 }
 
 type HelpDeferResponseCode = 421 | 451;
-export class HelpDeferResponse extends UnMtaResponse {
+export class HelpDeferResponse extends SmtpResponse {
   protected code: HelpDeferResponseCode;
 
   constructor(code: HelpDeferResponseCode = 451, message: string) {
@@ -59,7 +59,7 @@ export class HelpDeferResponse extends UnMtaResponse {
 }
 
 type HelpRejectResponseCode = 500 | 501 | 502 | 504;
-export class HelpRejectResponse extends UnMtaResponse {
+export class HelpRejectResponse extends SmtpResponse {
   protected code: HelpRejectResponseCode;
 
   constructor(code: HelpRejectResponseCode = 500, message: string) {
@@ -69,21 +69,21 @@ export class HelpRejectResponse extends UnMtaResponse {
 }
 
 // type AcceptResponseCode = 214 | 220 | 221 | 235 | 250 | 251 | 252;
-// export class AcceptResponse extends UnMtaResponse {
+// export class AcceptResponse extends SmtpResponse {
 //   constructor(message: string, data: any = null) {
 //     super(250, message, data);
 //   }
 // }
 
 // type TempFailCode = 421 | 450 | 451 | 452 | 455;
-// export class TempFailResponse extends UnMtaResponse {
+// export class TempFailResponse extends SmtpResponse {
 //   constructor(message: string, data: any = null) {
 //     super(450, message, data);
 //   }
 // }
 
 // type PermFailCode = 500 | 501 | 502 | 503 | 504 | 521 | 535 | 541 | 550 | 551 | 552 | 553 | 554;
-// export class PermFailResponse extends UnMtaResponse {
+// export class PermFailResponse extends SmtpResponse {
 //   protected code: PermFailCode;
 
 //   constructor(message: string, data: any = null) {
