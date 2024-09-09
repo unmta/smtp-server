@@ -30,9 +30,9 @@ interface SocketData {
 class SmtpCommand {
   private commands = ['HELO', 'EHLO', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'RSET', 'HELP', 'NOOP', 'VRFY'];
 
-  public message: string; // The raw message that was received
-  public name: string | undefined; // The command that was received (HELO, MAIL FROM, etc.)
-  public argument: string | undefined; // The argument that was received (email address, etc.)
+  public readonly message: string; // The raw message that was received
+  public readonly name: string | undefined; // The command that was received (HELO, MAIL FROM, etc.)
+  public readonly argument: string | undefined; // The argument that was received (email address, etc.)
 
   constructor(data: Buffer) {
     this.message = data.toString().trim();
@@ -44,7 +44,7 @@ class SmtpCommand {
 }
 
 export class UnMtaServer {
-  plugins: typeof unMtaPluginManager | null;
+  private plugins: typeof unMtaPluginManager | null;
 
   constructor(plugins: typeof unMtaPluginManager | null = null) {
     this.plugins = plugins;

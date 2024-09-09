@@ -34,9 +34,15 @@ describe('SMTP Server', async () => {
     expect(response).toContain('252 Will not VRFY user, but may accept message and attempt delivery');
   });
 
-  it('should respond the RSET command', async () => {
+  it('should respond to RSET command', async () => {
     await smtpClient.send('RSET');
     const response1 = await smtpClient.receive();
     expect(response1).toContain('250 OK');
+  });
+
+  it('should respond to invalid command', async () => {
+    await smtpClient.send('OHHI MARK');
+    const response1 = await smtpClient.receive();
+    expect(response1).toContain('500 Command not recognized');
   });
 });
