@@ -2,7 +2,7 @@ import type { Socket } from 'bun';
 import unfig from '../unfig.toml';
 import { version } from '../package.json';
 import { hostname } from 'os';
-import { SmtpSession, smtpPluginManager, SmtpCommand } from './';
+import { SmtpSession, smtpPluginManager, SmtpCommand, SmtpResponse, SmtpResponseBase } from './';
 import { EnvelopeAddress } from './EmailAddress';
 import logger from './Logger';
 
@@ -271,8 +271,8 @@ export class SmtpServer {
   }
 
   private async handleHelpCommand(sock: Socket<SocketData>, session: SmtpSession) {
-    await this.plugins?.executeHelpHooks(session);
-    this.write(sock, '214 See: https://unmta.com/');
+    const response = await this.plugins?.executeHelpHooks(session);
+    this.write(sock, response || SmtpResponse.Help.accept());
   }
 
   private async handleNoopCommand(sock: Socket<SocketData>, session: SmtpSession) {
@@ -305,7 +305,11 @@ export class SmtpServer {
     }, 15000);
   }
 
-  private write(sock: Socket<SocketData>, message: string, end = false) {
+  private write(sock: Socket<SocketData>, message: string | SmtpResponseBase, end = false) {
+    if (message instanceof SmtpResponseBase) {
+      end = message.code === 421; // 421 should always terminate connection https://datatracker.ietf.org/doc/html/rfc5321#section-3.8
+      message = `${message.code} ${message.message}`;
+    }
     logger.smtp(`< ${message}`);
     sock.write(`${message}\r\n`);
     if (end) sock.end();
