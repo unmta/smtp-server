@@ -3,6 +3,13 @@ port=2525
 listen="localhost" # Use 0.0.0.0 to listen on all interfaces
 #hostname="your.mail.server" # Optional, defaults to the hostname of the machine
 
+enableAuth=true
+
+[tls]
+enableStartTLS=true
+key="tls_key.pem"
+cert="tls_cert.pem"
+
 #[logger] 
 
 #[plugins]

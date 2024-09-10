@@ -37,6 +37,7 @@ export class SmtpServer {
     const server = Bun.listen<SocketData>({
       hostname: unfig.smtp.listen,
       port: unfig.smtp.port,
+      //tls: unfig.tls.enableStartTLS ? { key: Bun.file(unfig.tls.key), cert: Bun.file(unfig.tls.cert) } : undefined,
       // reusePort: true,
       data: { id: 0, timeout: null, messageWriteStream: null, messageWriteStreamWriter: null, lastDataChunks: [] },
       socket: {
@@ -169,7 +170,10 @@ export class SmtpServer {
         this.respond(sock, pluginResponse);
       } else {
         // Send extended response
-        const ehloLines = ['SIZE 10240000', 'AUTH LOGIN PLAIN']; // TODO make real
+        const ehloLines: string[] = [];
+        if (unfig.smtp.enableAuth) ehloLines.push('AUTH LOGIN PLAIN');
+        if (unfig.tls.enableStartTLS) ehloLines.push('STARTTLS');
+        ehloLines.push('SIZE 0'); // TODO: Add SIZE support
         this.respondExtended(
           sock,
           pluginResponse || SmtpResponse.Helo.accept(250, `${unfig.smtp.hostname || hostname} Hello ${command.argument}, pleased to meet you`),

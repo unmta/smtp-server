@@ -31,18 +31,18 @@ describe('SMTP Server', async () => {
   it('should respond to VRFY command', async () => {
     await smtpClient.send('VRFY');
     const response = await smtpClient.receive();
-    expect(response).toContain('252 Will not VRFY user, but may accept message and attempt delivery');
+    expect(response).toContain('252 Cannot VRFY user, but will accept message and attempt delivery');
   });
 
   it('should respond to RSET command', async () => {
     await smtpClient.send('RSET');
     const response1 = await smtpClient.receive();
-    expect(response1).toContain('250 OK');
+    expect(response1).toContain('250 Requested mail action okay, completed');
   });
 
   it('should respond to invalid command', async () => {
     await smtpClient.send('OHHI MARK');
     const response1 = await smtpClient.receive();
-    expect(response1).toContain('500 Command not recognized');
+    expect(response1).toContain('500 Syntax error, command unrecognized');
   });
 });
