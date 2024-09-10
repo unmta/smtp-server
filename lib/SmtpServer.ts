@@ -1,8 +1,7 @@
 import type { Socket } from 'bun';
 import unfig from '../unfig.toml';
-import { version } from '../package.json';
 import { hostname } from 'os';
-import { SmtpSession, smtpPluginManager, SmtpCommand, SmtpResponse, SmtpResponseBase } from './';
+import { SmtpSession, smtpPluginManager, SmtpCommand, SmtpResponse, SmtpResponseAny, ConnectAccept, HeloAccept } from './';
 import { EnvelopeAddress } from './EmailAddress';
 import logger from './Logger';
 
@@ -47,8 +46,8 @@ export class SmtpServer {
           const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
 
           logger.debug(`Client connected from ${sock.remoteAddress}`);
-          await smtp.plugins?.executeConnectHooks(session);
-          smtp.write(sock, `220 ${unfig.smtp.hostname || hostname().toLowerCase()} ESMTP unMta v${version} ready`);
+          const response = await smtp.plugins?.executeConnectHooks(session);
+          smtp.respond(sock, response || SmtpResponse.Connect.accept(), response && !(response instanceof ConnectAccept) ? true : false);
         },
         data(sock, data) {
           smtp.resetTimeout(sock); // Reset the idle timeout whenever data is received
@@ -65,7 +64,7 @@ export class SmtpServer {
 
           if (!session) {
             logger.warn(`Session ${sock.data.id} not found for socket`); // TODO add more info about session
-            smtp.write(sock, '451 4.3.0 Requested action aborted: local error in processing', true);
+            smtp.respond(sock, new SmtpResponseAny(421), true);
             return;
           }
 
@@ -155,7 +154,7 @@ export class SmtpServer {
 
   private async handleHeloCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (!command.argument) {
-      this.write(sock, '501 domain/address required');
+      this.respond(sock, new SmtpResponseAny(501));
       return;
     }
     // If we're past the helo phase, reset the session
@@ -165,13 +164,23 @@ export class SmtpServer {
     }
     session.phase = 'helo';
 
-    await this.plugins?.executeHeloHooks(session);
+    const pluginResponse = await this.plugins?.executeHeloHooks(session);
     if (command.name === 'EHLO') {
-      this.write(sock, '250-Hello');
-      this.write(sock, '250-SIZE 10240000');
-      this.write(sock, '250 AUTH LOGIN PLAIN');
+      // If not an accept response, send as regular response
+      if (pluginResponse && !(pluginResponse instanceof HeloAccept)) {
+        this.respond(sock, pluginResponse);
+      } else {
+        // Send extended response
+        const ehloLines = ['SIZE 10240000', 'AUTH LOGIN PLAIN']; // TODO make real
+        this.respondExtended(
+          sock,
+          pluginResponse || SmtpResponse.Helo.accept(250, `${unfig.smtp.hostname || hostname} Hello ${command.argument}, pleased to meet you`),
+          ehloLines
+        );
+      }
     } else {
-      this.write(sock, '250 Hello');
+      // If HELO, send regular response
+      this.respond(sock, pluginResponse || SmtpResponse.Helo.accept(250, `${unfig.smtp.hostname || hostname} Hello ${command.argument}, pleased to meet you`));
     }
   }
 
@@ -271,8 +280,8 @@ export class SmtpServer {
   }
 
   private async handleHelpCommand(sock: Socket<SocketData>, session: SmtpSession) {
-    const response = await this.plugins?.executeHelpHooks(session);
-    this.write(sock, response || SmtpResponse.Help.accept());
+    const pluginResponse = await this.plugins?.executeHelpHooks(session);
+    this.respond(sock, pluginResponse || SmtpResponse.Help.accept());
   }
 
   private async handleNoopCommand(sock: Socket<SocketData>, session: SmtpSession) {
@@ -305,11 +314,21 @@ export class SmtpServer {
     }, 15000);
   }
 
-  private write(sock: Socket<SocketData>, message: string | SmtpResponseBase, end = false) {
-    if (message instanceof SmtpResponseBase) {
-      end = message.code === 421; // 421 should always terminate connection https://datatracker.ietf.org/doc/html/rfc5321#section-3.8
-      message = `${message.code} ${message.message}`;
-    }
+  private respond(sock: Socket<SocketData>, response: SmtpResponseAny, end = false) {
+    if (response.code === 421) end = true; // 421 should always terminate connection https://datatracker.ietf.org/doc/html/rfc5321#section-3.8
+    this.write(sock, `${response.code} ${response.message}`, end);
+  }
+
+  private respondExtended(sock: Socket<SocketData>, response: SmtpResponseAny, extended: string[], end = false) {
+    const lines = [response.message, ...extended];
+    const messages = lines.map((line, i) => {
+      if (i === lines.length - 1) return `${response.code} ${line}`;
+      return `${response.code}-${line}`;
+    });
+    this.write(sock, messages.join('\r\n'), end);
+  }
+
+  private write(sock: Socket<SocketData>, message: string, end = false) {
     logger.smtp(`< ${message}`);
     sock.write(`${message}\r\n`);
     if (end) sock.end();
