@@ -1,14 +1,12 @@
 import type { Socket } from 'bun';
 import unfig from '../unfig.toml';
 import { hostname } from 'os';
-import { SmtpSession, smtpPluginManager, SmtpCommand, SmtpResponse, SmtpResponseAny, ConnectAccept, HeloAccept } from './';
+import { SmtpSession, smtpPluginManager, SmtpCommand, SmtpResponse, SmtpResponseAny, ConnectAccept, HeloAccept, RsetAccept } from './';
 import { EnvelopeAddress } from './EmailAddress';
 import logger from './Logger';
 
-// Enable plugins to modify the response to the client
 // Expose readable stream to session for data phase
 // Convert writablestream into duplex or transform stream?
-// default should be to reject for mail from/rcpt to?
 // Add support for STARTTLS
 // Add support for AUTH LOGIN and PLAIN
 // Ability to transform the data stream? change headers, body, etc.
@@ -46,8 +44,8 @@ export class SmtpServer {
           const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
 
           logger.debug(`Client connected from ${sock.remoteAddress}`);
-          const response = await smtp.plugins?.executeConnectHooks(session);
-          smtp.respond(sock, response || SmtpResponse.Connect.accept(), response && !(response instanceof ConnectAccept) ? true : false);
+          const pluginResponse = await smtp.plugins?.executeConnectHooks(session);
+          smtp.respond(sock, pluginResponse || SmtpResponse.Connect.accept(), pluginResponse && !(pluginResponse instanceof ConnectAccept) ? true : false);
         },
         data(sock, data) {
           smtp.resetTimeout(sock); // Reset the idle timeout whenever data is received
@@ -64,7 +62,7 @@ export class SmtpServer {
 
           if (!session) {
             logger.warn(`Session ${sock.data.id} not found for socket`); // TODO add more info about session
-            smtp.respond(sock, new SmtpResponseAny(421), true);
+            smtp.respond(sock, SmtpResponse.Connect.defer(), true);
             return;
           }
 
@@ -154,7 +152,7 @@ export class SmtpServer {
 
   private async handleHeloCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (!command.argument) {
-      this.respond(sock, new SmtpResponseAny(501));
+      this.respond(sock, SmtpResponse.Helo.reject(501));
       return;
     }
     // If we're past the helo phase, reset the session
@@ -186,7 +184,7 @@ export class SmtpServer {
 
   private async handleMailFromCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (session.phase !== 'helo') {
-      this.write(sock, '503 Bad sequence of commands');
+      this.respond(sock, new SmtpResponseAny(503));
       return;
     }
 
@@ -195,19 +193,19 @@ export class SmtpServer {
       if (email.address) {
         session.sender = email;
         session.phase = 'sender';
-        await this.plugins?.executeMailFromHooks(session);
-        this.write(sock, '250 OK');
+        const pluginResponse = await this.plugins?.executeMailFromHooks(session);
+        this.respond(sock, pluginResponse || SmtpResponse.MailFrom.accept());
       } else {
-        this.write(sock, '550 Invalid address');
+        this.respond(sock, new SmtpResponseAny(501)); // Invalid email address
       }
     } else {
-      this.write(sock, '501 Syntax error in parameters or arguments');
+      this.respond(sock, new SmtpResponseAny(501));
     }
   }
 
   private async handleRcptToCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (session?.phase !== 'sender' && session?.phase !== 'recipient') {
-      this.write(sock, '503 Bad sequence of commands');
+      this.respond(sock, new SmtpResponseAny(503));
       return;
     }
 
@@ -216,20 +214,20 @@ export class SmtpServer {
       if (email.address) {
         session.recipients.push(email);
         session.phase = 'recipient';
-        await this.plugins?.executeRcptToHooks(session);
-        this.write(sock, '250 OK');
+        const pluginResponse = await this.plugins?.executeRcptToHooks(session);
+        this.respond(sock, pluginResponse || SmtpResponse.RcptTo.reject()); // RCPT TO phase REQUIRES plugin to accept
       } else {
-        this.write(sock, '550 Invalid address');
+        this.respond(sock, new SmtpResponseAny(501)); // Invalid email address
       }
     } else {
-      this.write(sock, '501 Syntax error in parameters or arguments');
+      this.respond(sock, new SmtpResponseAny(501));
     }
   }
 
   // Handle the DATA command
   private async handleDataCommand(sock: Socket<SocketData>, session: SmtpSession) {
     if (session.phase !== 'recipient') {
-      this.write(sock, '503 Bad sequence of commands');
+      this.respond(sock, new SmtpResponseAny(503));
       return;
     }
 
@@ -238,8 +236,8 @@ export class SmtpServer {
     sock.data.messageWriteStream = new WritableStream();
     sock.data.messageWriteStreamWriter = sock.data.messageWriteStream.getWriter();
 
-    await this.plugins?.executeDataStartHooks(session);
-    this.write(sock, '354 Start mail input; end with <CRLF>.<CRLF>');
+    const pluginResponse = await this.plugins?.executeDataStartHooks(session);
+    this.respond(sock, pluginResponse || SmtpResponse.DataStart.accept());
   }
 
   // Handle incoming data stream
@@ -260,23 +258,23 @@ export class SmtpServer {
     await sock.data.messageWriteStreamWriter?.close();
     session.isDataMode = false; // Exit DATA mode
     session.phase = 'postdata';
-    await this.plugins?.executeDataEndHooks(session);
-    this.write(sock, '250 Message accepted');
+    const pluginResponse = await this.plugins?.executeDataEndHooks(session);
+    this.respond(sock, pluginResponse || SmtpResponse.DataEnd.accept());
   }
 
   private async handleQuitCommand(sock: Socket<SocketData>, session: SmtpSession) {
-    await this.plugins?.executeQuitHooks(session);
-    this.write(sock, '221 Bye', true);
+    const pluginResponse = await this.plugins?.executeQuitHooks(session);
+    this.respond(sock, pluginResponse || SmtpResponse.Quit.accept(), true);
   }
 
   private async handleRsetCommand(sock: Socket<SocketData>, session: SmtpSession) {
+    const pluginResponse = await this.plugins?.executeRsetHooks(session);
     // Only reset session if we're past the connection phase - otherwise there's nothing to reset
-    if (session.phase !== 'connection') {
-      await this.plugins?.executeRsetHooks(session);
+    if (session.phase !== 'connection' && (!pluginResponse || pluginResponse instanceof RsetAccept)) {
       this.resetSession(sock, sock.data.id, 'helo', session); // Reset the session state, AFTER the HELO phase
       // TODO - if we store HELO/EHLO data, we need to NOT reset that
     }
-    this.write(sock, '250 OK');
+    this.respond(sock, pluginResponse || SmtpResponse.Rset.accept());
   }
 
   private async handleHelpCommand(sock: Socket<SocketData>, session: SmtpSession) {
@@ -285,18 +283,18 @@ export class SmtpServer {
   }
 
   private async handleNoopCommand(sock: Socket<SocketData>, session: SmtpSession) {
-    await this.plugins?.executeNoopHooks(session);
-    this.write(sock, '250 OK');
+    const pluginResponse = await this.plugins?.executeNoopHooks(session);
+    this.respond(sock, pluginResponse || SmtpResponse.Noop.accept());
   }
 
   private async handleVrfyCommand(sock: Socket<SocketData>, session: SmtpSession) {
-    await this.plugins?.executeVrfyHooks(session);
-    this.write(sock, '252 Will not VRFY user, but may accept message and attempt delivery');
+    const pluginResponse = await this.plugins?.executeVrfyHooks(session);
+    this.respond(sock, pluginResponse || SmtpResponse.Vrfy.accept());
   }
 
   private async handleUnknownCommand(sock: Socket<SocketData>, session: SmtpSession) {
-    await this.plugins?.executeUnknownHooks(session);
-    this.write(sock, '500 Command not recognized');
+    const pluginResponse = await this.plugins?.executeUnknownHooks(session);
+    this.respond(sock, pluginResponse || SmtpResponse.Unknown.reject());
   }
 
   private resetTimeout(sock: Socket<SocketData>, clearOnly = false) {
@@ -310,7 +308,7 @@ export class SmtpServer {
     // Set a new timeout
     sock.data.timeout = setTimeout(() => {
       logger.debug(`Session ${sock.data.id} timed out due to inactivity.`); // TODO add more info about client (ip, etc.)
-      this.write(sock, '421 4.4.2 Connection timed out due to inactivity', true);
+      this.respond(sock, new SmtpResponseAny(421, 'Connection timed out due to inactivity'), true);
     }, 15000);
   }
 

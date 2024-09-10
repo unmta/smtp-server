@@ -274,7 +274,7 @@ export class DataEndReject extends SmtpResponseAny {
 }
 
 class DataEnd {
-  static accept(code: DataEndAcceptCode = DefaultDataEndAcceptCode, message: string | null = null) {
+  static accept(code: DataEndAcceptCode = DefaultDataEndAcceptCode, message: string | null = 'Message queued for delivery') {
     return new DataEndAccept(code, message);
   }
   static defer(code: DataEndDeferCode = DefaultDataEndDeferCode, message: string | null = null) {
@@ -313,7 +313,7 @@ export class QuitReject extends SmtpResponseAny {
 }
 
 class Quit {
-  static accept(code: QuitAcceptCode = DefaultQuitAcceptCode, message: string | null = null) {
+  static accept(code: QuitAcceptCode = DefaultQuitAcceptCode, message: string | null = 'Stay classy') {
     return new QuitAccept(code, message);
   }
   static defer(code: QuitDeferCode = DefaultQuitDeferCode, message: string | null = null) {
@@ -430,7 +430,7 @@ export class NoopReject extends SmtpResponseAny {
 }
 
 class Noop {
-  static accept(code: NoopAcceptCode = DefaultNoopAcceptCode, message: string | null = null) {
+  static accept(code: NoopAcceptCode = DefaultNoopAcceptCode, message: string | null = 'OK') {
     return new NoopAccept(code, message);
   }
   static defer(code: NoopDeferCode = DefaultNoopDeferCode, message: string | null = null) {
@@ -557,10 +557,3 @@ export class SmtpResponse {
     return Unknown;
   }
 }
-
-// Add auth response
-// add (modify?) session data
-// if rejected, don't allow further accepting in that smtp session (in some cases? ex: greylisting)
-// based on response (namely reject), don't run any other plugins for that event
-// for rcpt to (and maybe others), if rejected, other commands SHOULD be allowed
-// Need to be able to handle multi-line EHLO response?

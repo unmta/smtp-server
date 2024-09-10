@@ -75,7 +75,8 @@ class SmtpPluginManager {
   async executeConnectHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onConnect) {
-        return await plugin.onConnect(session);
+        const pluginResult = await plugin.onConnect(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -84,7 +85,8 @@ class SmtpPluginManager {
   async executeHeloHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelo) {
-        return await plugin.onHelo(session);
+        const pluginResult = await plugin.onHelo(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -93,7 +95,8 @@ class SmtpPluginManager {
   async executeMailFromHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onMailFrom) {
-        return await plugin.onMailFrom(session);
+        const pluginResult = await plugin.onMailFrom(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -102,7 +105,8 @@ class SmtpPluginManager {
   async executeRcptToHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onRcptTo) {
-        return await plugin.onRcptTo(session);
+        const pluginResult = await plugin.onRcptTo(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -111,7 +115,8 @@ class SmtpPluginManager {
   async executeDataStartHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onDataStart) {
-        return await plugin.onDataStart(session);
+        const pluginResult = await plugin.onDataStart(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -120,7 +125,8 @@ class SmtpPluginManager {
   async executeDataEndHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onDataEnd) {
-        return await plugin.onDataEnd(session);
+        const pluginResult = await plugin.onDataEnd(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -129,7 +135,8 @@ class SmtpPluginManager {
   async executeQuitHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onQuit) {
-        return await plugin.onQuit(session);
+        const pluginResult = await plugin.onQuit(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -138,7 +145,8 @@ class SmtpPluginManager {
   async executeCloseHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onClose) {
-        return await plugin.onClose(session);
+        // Can't return a response from this hook
+        await plugin.onClose(session);
       }
     }
   }
@@ -147,7 +155,8 @@ class SmtpPluginManager {
   async executeRsetHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onRset) {
-        return await plugin.onRset(session);
+        const pluginResult = await plugin.onRset(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -156,7 +165,8 @@ class SmtpPluginManager {
   async executeHelpHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelp) {
-        return await plugin.onHelp(session);
+        const pluginResult = await plugin.onHelp(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -165,7 +175,8 @@ class SmtpPluginManager {
   async executeNoopHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onNoop) {
-        return await plugin.onNoop(session);
+        const pluginResult = await plugin.onNoop(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -174,7 +185,8 @@ class SmtpPluginManager {
   async executeVrfyHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onVrfy) {
-        return await plugin.onVrfy(session);
+        const pluginResult = await plugin.onVrfy(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
@@ -183,7 +195,8 @@ class SmtpPluginManager {
   async executeUnknownHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onUnknown) {
-        return await plugin.onUnknown(session);
+        const pluginResult = await plugin.onUnknown(session);
+        if (pluginResult) return pluginResult;
       }
     }
   }
