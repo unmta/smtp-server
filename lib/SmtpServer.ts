@@ -69,7 +69,7 @@ export class SmtpServer {
           }
 
           const command = new SmtpCommand(data);
-          logger.smtp(`> ${command.message}`);
+          logger.smtp(`> ${command.raw}`);
 
           if (!session) {
             logger.warn(`Session ${sock.data.id} not found for socket`); // TODO add more info about session
@@ -119,12 +119,12 @@ export class SmtpServer {
           }
           // Handle VRFY command
           if (command.name === 'VRFY') {
-            smtp.handleVrfyCommand(sock, session);
+            smtp.handleVrfyCommand(command, sock, session);
             return;
           }
           // Handle unknown commands
           if (!command.name) {
-            smtp.handleUnknownCommand(sock, session);
+            smtp.handleUnknownCommand(command, sock, session);
             return;
           }
         },
@@ -173,7 +173,7 @@ export class SmtpServer {
     }
     session.phase = 'helo';
 
-    const pluginResponse = await this.plugins?.executeHeloHooks(session);
+    const pluginResponse = await this.plugins?.executeHeloHooks(session, command);
     if (command.name === 'EHLO') {
       // If not an accept response, send as regular response
       if (pluginResponse && !(pluginResponse instanceof HeloAccept)) {
@@ -207,7 +207,7 @@ export class SmtpServer {
       if (email.address) {
         session.sender = email;
         session.phase = 'sender';
-        const pluginResponse = await this.plugins?.executeMailFromHooks(session);
+        const pluginResponse = await this.plugins?.executeMailFromHooks(session, email);
         this.respond(sock, pluginResponse || SmtpResponse.MailFrom.accept());
       } else {
         this.respond(sock, new SmtpResponseAny(501)); // Invalid email address
@@ -228,7 +228,7 @@ export class SmtpServer {
       if (email.address) {
         session.recipients.push(email);
         session.phase = 'recipient';
-        const pluginResponse = await this.plugins?.executeRcptToHooks(session);
+        const pluginResponse = await this.plugins?.executeRcptToHooks(session, email);
         this.respond(sock, pluginResponse || SmtpResponse.RcptTo.reject()); // RCPT TO phase REQUIRES plugin to accept
       } else {
         this.respond(sock, new SmtpResponseAny(501)); // Invalid email address
@@ -301,13 +301,13 @@ export class SmtpServer {
     this.respond(sock, pluginResponse || SmtpResponse.Noop.accept());
   }
 
-  private async handleVrfyCommand(sock: Socket<SocketData>, session: SmtpSession) {
-    const pluginResponse = await this.plugins?.executeVrfyHooks(session);
+  private async handleVrfyCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+    const pluginResponse = await this.plugins?.executeVrfyHooks(session, command); // Pass raw command instead of an EnvelopeAddress to plugins since VRFY data can get weird
     this.respond(sock, pluginResponse || SmtpResponse.Vrfy.accept());
   }
 
-  private async handleUnknownCommand(sock: Socket<SocketData>, session: SmtpSession) {
-    const pluginResponse = await this.plugins?.executeUnknownHooks(session);
+  private async handleUnknownCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+    const pluginResponse = await this.plugins?.executeUnknownHooks(session, command);
     this.respond(sock, pluginResponse || SmtpResponse.Unknown.reject());
   }
 

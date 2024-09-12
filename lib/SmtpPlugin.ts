@@ -1,4 +1,4 @@
-import { SmtpSession, SmtpPluginSession } from '.';
+import { SmtpCommand, SmtpSession, SmtpPluginSession, EnvelopeAddress } from '.';
 import type {
   ConnectAccept,
   ConnectDefer,
@@ -38,18 +38,24 @@ import type {
   UnknownReject,
 } from '.';
 
-// TODO add command parameters to the hooks
-
 export interface SmtpPlugin {
   pluginName: string;
   onConnect?: (
     session: SmtpPluginSession
   ) => Promise<void | ConnectAccept | ConnectDefer | ConnectReject> | void | ConnectAccept | ConnectDefer | ConnectReject;
-  onHelo?: (session: SmtpPluginSession) => Promise<void | HeloAccept | HeloDefer | HeloReject> | void | HeloAccept | HeloDefer | HeloReject;
+  onHelo?: (
+    session: SmtpPluginSession,
+    hostname: string,
+    verb: 'HELO' | 'EHLO'
+  ) => Promise<void | HeloAccept | HeloDefer | HeloReject> | void | HeloAccept | HeloDefer | HeloReject;
   onMailFrom?: (
-    session: SmtpPluginSession
+    session: SmtpPluginSession,
+    address: EnvelopeAddress
   ) => Promise<void | MailFromAccept | MailFromDefer | MailFromReject> | void | MailFromAccept | MailFromDefer | MailFromReject;
-  onRcptTo?: (session: SmtpPluginSession) => Promise<void | RcptToAccept | RcptToDefer | RcptToReject> | void | RcptToAccept | RcptToDefer | RcptToReject;
+  onRcptTo?: (
+    session: SmtpPluginSession,
+    address: EnvelopeAddress
+  ) => Promise<void | RcptToAccept | RcptToDefer | RcptToReject> | void | RcptToAccept | RcptToDefer | RcptToReject;
   onDataStart?: (
     session: SmtpPluginSession
   ) => Promise<void | DataStartAccept | DataStartDefer | DataStartReject> | void | DataStartAccept | DataStartDefer | DataStartReject;
@@ -61,9 +67,13 @@ export interface SmtpPlugin {
   onRset?: (session: SmtpPluginSession) => Promise<void | RsetAccept | RsetDefer | RsetReject> | void | RsetAccept | RsetDefer | RsetReject;
   onHelp?: (session: SmtpPluginSession) => Promise<void | HelpAccept | HelpDefer | HelpReject> | void | HelpAccept | HelpDefer | HelpReject;
   onNoop?: (session: SmtpPluginSession) => Promise<void | NoopAccept | NoopDefer | NoopReject> | void | NoopAccept | NoopDefer | NoopReject;
-  onVrfy?: (session: SmtpPluginSession) => Promise<void | VrfyAccept | VrfyDefer | VrfyReject> | void | VrfyAccept | VrfyDefer | VrfyReject;
+  onVrfy?: (
+    session: SmtpPluginSession,
+    command: SmtpCommand
+  ) => Promise<void | VrfyAccept | VrfyDefer | VrfyReject> | void | VrfyAccept | VrfyDefer | VrfyReject;
   onUnknown?: (
-    session: SmtpPluginSession
+    session: SmtpPluginSession,
+    command: SmtpCommand
   ) => Promise<void | UnknownAccept | UnknownDefer | UnknownReject> | void | UnknownAccept | UnknownDefer | UnknownReject;
 }
 
@@ -86,30 +96,34 @@ class SmtpPluginManager {
   }
 
   // Execute hooks for HELO
-  async executeHeloHooks(session: SmtpSession) {
+  async executeHeloHooks(session: SmtpSession, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onHelo) {
-        const pluginResult = await plugin.onHelo(new SmtpPluginSession(plugin.pluginName, session));
+        const pluginResult = await plugin.onHelo(
+          new SmtpPluginSession(plugin.pluginName, session),
+          command.argument || '',
+          command.name === 'EHLO' ? 'EHLO' : 'HELO'
+        );
         return pluginResult;
       }
     }
   }
 
   // Execute hooks for MAIL FROM
-  async executeMailFromHooks(session: SmtpSession) {
+  async executeMailFromHooks(session: SmtpSession, address: EnvelopeAddress) {
     for (const plugin of this.plugins) {
       if (plugin.onMailFrom) {
-        const pluginResult = await plugin.onMailFrom(new SmtpPluginSession(plugin.pluginName, session));
+        const pluginResult = await plugin.onMailFrom(new SmtpPluginSession(plugin.pluginName, session), address);
         return pluginResult;
       }
     }
   }
 
   // Execute hooks for RCPT TO
-  async executeRcptToHooks(session: SmtpSession) {
+  async executeRcptToHooks(session: SmtpSession, address: EnvelopeAddress) {
     for (const plugin of this.plugins) {
       if (plugin.onRcptTo) {
-        const pluginResult = await plugin.onRcptTo(new SmtpPluginSession(plugin.pluginName, session));
+        const pluginResult = await plugin.onRcptTo(new SmtpPluginSession(plugin.pluginName, session), address);
         return pluginResult;
       }
     }
@@ -186,20 +200,20 @@ class SmtpPluginManager {
   }
 
   // Execute hooks for VRFY
-  async executeVrfyHooks(session: SmtpSession) {
+  async executeVrfyHooks(session: SmtpSession, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onVrfy) {
-        const pluginResult = await plugin.onVrfy(new SmtpPluginSession(plugin.pluginName, session));
+        const pluginResult = await plugin.onVrfy(new SmtpPluginSession(plugin.pluginName, session), command);
         return pluginResult;
       }
     }
   }
 
   // Execute hooks for Unknown commands
-  async executeUnknownHooks(session: SmtpSession) {
+  async executeUnknownHooks(session: SmtpSession, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onUnknown) {
-        const pluginResult = await plugin.onUnknown(new SmtpPluginSession(plugin.pluginName, session));
+        const pluginResult = await plugin.onUnknown(new SmtpPluginSession(plugin.pluginName, session), command);
         return pluginResult;
       }
     }
