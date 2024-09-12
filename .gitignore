@@ -174,5 +174,8 @@ dist
 # Finder (MacOS) folder config
 .DS_Store
 
+# TLS certificates
+*.pem
+
 # Don't commit my tmp stuff. The world isn't ready for it.
 tmp*

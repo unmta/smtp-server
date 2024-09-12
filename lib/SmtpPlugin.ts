@@ -1,3 +1,4 @@
+import { SmtpSession, SmtpPluginSession } from '.';
 import type {
   ConnectAccept,
   ConnectDefer,
@@ -35,32 +36,35 @@ import type {
   UnknownAccept,
   UnknownDefer,
   UnknownReject,
-  SmtpSession,
 } from '.';
 
-// TODO add parameters to the hooks
-// Allow ability to read session data (and write to it within a certain scope)
-// Add RSET
+// TODO add command parameters to the hooks
 
-// Add ability to modify the response to the client
 export interface SmtpPlugin {
-  onConnect?: (session: SmtpSession) => Promise<void | ConnectAccept | ConnectDefer | ConnectReject> | void | ConnectAccept | ConnectDefer | ConnectReject;
-  onHelo?: (session: SmtpSession) => Promise<void | HeloAccept | HeloDefer | HeloReject> | void | HeloAccept | HeloDefer | HeloReject;
+  pluginName: string;
+  onConnect?: (
+    session: SmtpPluginSession
+  ) => Promise<void | ConnectAccept | ConnectDefer | ConnectReject> | void | ConnectAccept | ConnectDefer | ConnectReject;
+  onHelo?: (session: SmtpPluginSession) => Promise<void | HeloAccept | HeloDefer | HeloReject> | void | HeloAccept | HeloDefer | HeloReject;
   onMailFrom?: (
-    session: SmtpSession
+    session: SmtpPluginSession
   ) => Promise<void | MailFromAccept | MailFromDefer | MailFromReject> | void | MailFromAccept | MailFromDefer | MailFromReject;
-  onRcptTo?: (session: SmtpSession) => Promise<void | RcptToAccept | RcptToDefer | RcptToReject> | void | RcptToAccept | RcptToDefer | RcptToReject;
+  onRcptTo?: (session: SmtpPluginSession) => Promise<void | RcptToAccept | RcptToDefer | RcptToReject> | void | RcptToAccept | RcptToDefer | RcptToReject;
   onDataStart?: (
-    session: SmtpSession
+    session: SmtpPluginSession
   ) => Promise<void | DataStartAccept | DataStartDefer | DataStartReject> | void | DataStartAccept | DataStartDefer | DataStartReject;
-  onDataEnd?: (session: SmtpSession) => Promise<void | DataEndAccept | DataEndDefer | DataEndReject> | void | DataEndAccept | DataEndDefer | DataEndReject;
-  onQuit?: (session: SmtpSession) => Promise<void | QuitAccept | QuitDefer | QuitReject> | void | QuitAccept | QuitDefer | QuitReject;
-  onClose?: (session: SmtpSession) => Promise<void> | void;
-  onRset?: (session: SmtpSession) => Promise<void | RsetAccept | RsetDefer | RsetReject> | void | RsetAccept | RsetDefer | RsetReject;
-  onHelp?: (session: SmtpSession) => Promise<void | HelpAccept | HelpDefer | HelpReject> | void | HelpAccept | HelpDefer | HelpReject;
-  onNoop?: (session: SmtpSession) => Promise<void | NoopAccept | NoopDefer | NoopReject> | void | NoopAccept | NoopDefer | NoopReject;
-  onVrfy?: (session: SmtpSession) => Promise<void | VrfyAccept | VrfyDefer | VrfyReject> | void | VrfyAccept | VrfyDefer | VrfyReject;
-  onUnknown?: (session: SmtpSession) => Promise<void | UnknownAccept | UnknownDefer | UnknownReject> | void | UnknownAccept | UnknownDefer | UnknownReject;
+  onDataEnd?: (
+    session: SmtpPluginSession
+  ) => Promise<void | DataEndAccept | DataEndDefer | DataEndReject> | void | DataEndAccept | DataEndDefer | DataEndReject;
+  onQuit?: (session: SmtpPluginSession) => Promise<void | QuitAccept | QuitDefer | QuitReject> | void | QuitAccept | QuitDefer | QuitReject;
+  onClose?: (session: SmtpPluginSession) => Promise<void> | void;
+  onRset?: (session: SmtpPluginSession) => Promise<void | RsetAccept | RsetDefer | RsetReject> | void | RsetAccept | RsetDefer | RsetReject;
+  onHelp?: (session: SmtpPluginSession) => Promise<void | HelpAccept | HelpDefer | HelpReject> | void | HelpAccept | HelpDefer | HelpReject;
+  onNoop?: (session: SmtpPluginSession) => Promise<void | NoopAccept | NoopDefer | NoopReject> | void | NoopAccept | NoopDefer | NoopReject;
+  onVrfy?: (session: SmtpPluginSession) => Promise<void | VrfyAccept | VrfyDefer | VrfyReject> | void | VrfyAccept | VrfyDefer | VrfyReject;
+  onUnknown?: (
+    session: SmtpPluginSession
+  ) => Promise<void | UnknownAccept | UnknownDefer | UnknownReject> | void | UnknownAccept | UnknownDefer | UnknownReject;
 }
 
 class SmtpPluginManager {
@@ -75,8 +79,8 @@ class SmtpPluginManager {
   async executeConnectHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onConnect) {
-        const pluginResult = await plugin.onConnect(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onConnect(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -85,8 +89,8 @@ class SmtpPluginManager {
   async executeHeloHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelo) {
-        const pluginResult = await plugin.onHelo(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onHelo(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -95,8 +99,8 @@ class SmtpPluginManager {
   async executeMailFromHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onMailFrom) {
-        const pluginResult = await plugin.onMailFrom(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onMailFrom(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -105,8 +109,8 @@ class SmtpPluginManager {
   async executeRcptToHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onRcptTo) {
-        const pluginResult = await plugin.onRcptTo(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onRcptTo(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -115,8 +119,8 @@ class SmtpPluginManager {
   async executeDataStartHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onDataStart) {
-        const pluginResult = await plugin.onDataStart(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onDataStart(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -125,8 +129,8 @@ class SmtpPluginManager {
   async executeDataEndHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onDataEnd) {
-        const pluginResult = await plugin.onDataEnd(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onDataEnd(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -135,8 +139,8 @@ class SmtpPluginManager {
   async executeQuitHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onQuit) {
-        const pluginResult = await plugin.onQuit(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onQuit(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -146,7 +150,7 @@ class SmtpPluginManager {
     for (const plugin of this.plugins) {
       if (plugin.onClose) {
         // Can't return a response from this hook
-        await plugin.onClose(session);
+        await plugin.onClose(new SmtpPluginSession(plugin.pluginName, session));
       }
     }
   }
@@ -155,8 +159,8 @@ class SmtpPluginManager {
   async executeRsetHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onRset) {
-        const pluginResult = await plugin.onRset(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onRset(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -165,8 +169,8 @@ class SmtpPluginManager {
   async executeHelpHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelp) {
-        const pluginResult = await plugin.onHelp(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onHelp(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -175,8 +179,8 @@ class SmtpPluginManager {
   async executeNoopHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onNoop) {
-        const pluginResult = await plugin.onNoop(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onNoop(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -185,8 +189,8 @@ class SmtpPluginManager {
   async executeVrfyHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onVrfy) {
-        const pluginResult = await plugin.onVrfy(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onVrfy(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }
@@ -195,8 +199,8 @@ class SmtpPluginManager {
   async executeUnknownHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onUnknown) {
-        const pluginResult = await plugin.onUnknown(session);
-        if (pluginResult) return pluginResult;
+        const pluginResult = await plugin.onUnknown(new SmtpPluginSession(plugin.pluginName, session));
+        return pluginResult;
       }
     }
   }

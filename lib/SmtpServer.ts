@@ -1,8 +1,18 @@
 import type { Socket } from 'bun';
 import unfig from '../unfig.toml';
 import { hostname } from 'os';
-import { SmtpSession, smtpPluginManager, SmtpCommand, SmtpResponse, SmtpResponseAny, ConnectAccept, HeloAccept, RsetAccept } from './';
-import { EnvelopeAddress } from './EmailAddress';
+import {
+  SmtpSession,
+  SmtpPluginSession,
+  EnvelopeAddress,
+  smtpPluginManager,
+  SmtpCommand,
+  SmtpResponse,
+  SmtpResponseAny,
+  ConnectAccept,
+  HeloAccept,
+  RsetAccept,
+} from './';
 import logger from './Logger';
 
 // Expose readable stream to session for data phase
