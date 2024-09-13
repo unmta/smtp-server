@@ -25,8 +25,9 @@ export class SmtpServer {
   }
 
   // Start the server
-  public start() {
+  public async start() {
     const smtp = this;
+    await this.plugins?.executeServerStartHooks();
     const server = Bun.listen<SocketData>({
       hostname: unfig.smtp.listen,
       port: unfig.smtp.port,
