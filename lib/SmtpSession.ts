@@ -6,7 +6,6 @@ export class SmtpSession {
   public startTime: number; // The time the session started
   public phase: SmtpPhase; // The current phase of the SMTP session
   public isDataMode: boolean;
-  // public messageReadStream: ReadableStream | null = null;
   public sender: EnvelopeAddress | null = null;
   public recipients: EnvelopeAddress[] = [];
   public pluginData: Record<string, Record<string, any>> = {};
@@ -26,7 +25,6 @@ export class SmtpPluginSession {
   private _startTime: number; // The time the session started
   private _phase: SmtpPhase; // The current phase of the SMTP session
   private _isDataMode: boolean;
-  // private _messageReadStream: ReadableStream | null = null;
   private _sender: EnvelopeAddress | null = null;
   private _recipients: EnvelopeAddress[] = [];
   private _pluginName: string;

@@ -1,25 +1,9 @@
 import type { Socket } from 'bun';
 import unfig from '../unfig.toml';
+import { EventEmitter } from 'events';
 import { hostname } from 'os';
-import {
-  SmtpSession,
-  SmtpPluginSession,
-  EnvelopeAddress,
-  smtpPluginManager,
-  SmtpCommand,
-  SmtpResponse,
-  SmtpResponseAny,
-  ConnectAccept,
-  HeloAccept,
-  RsetAccept,
-} from './';
+import { SmtpSession, EnvelopeAddress, smtpPluginManager, SmtpCommand, SmtpResponse, SmtpResponseAny, ConnectAccept, HeloAccept, RsetAccept } from './';
 import logger from './Logger';
-
-// Expose readable stream to session for data phase
-// Convert writablestream into duplex or transform stream?
-// Add support for STARTTLS
-// Add support for AUTH LOGIN and PLAIN
-// Ability to transform the data stream? change headers, body, etc.
 
 // A Map to keep track of sessions keyed by socket
 let sessionCounter = 1;
@@ -29,8 +13,7 @@ const sessions = new Map<number, SmtpSession>();
 interface SocketData {
   id: number;
   timeout?: Timer | null;
-  messageWriteStream: WritableStream | null;
-  messageWriteStreamWriter: WritableStreamDefaultWriter<Uint8Array> | null;
+  onDataBufferEvent?: EventEmitter | null; // Event emitter for incoming message data stream
   lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
 }
 
@@ -49,7 +32,7 @@ export class SmtpServer {
       port: unfig.smtp.port,
       //tls: unfig.tls.enableStartTLS ? { key: Bun.file(unfig.tls.key), cert: Bun.file(unfig.tls.cert) } : undefined,
       // reusePort: true,
-      data: { id: 0, timeout: null, messageWriteStream: null, messageWriteStreamWriter: null, lastDataChunks: [] },
+      data: { id: 0, timeout: null, onDataBufferEvent: null, lastDataChunks: [] },
       socket: {
         async open(sock) {
           const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
@@ -154,7 +137,7 @@ export class SmtpServer {
     logger.debug(`${newConnection ? 'Setting' : 'Resetting'} session ${id} to ${phase} phase`);
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
-    sock.data = { id: id, timeout: null, messageWriteStream: null, messageWriteStreamWriter: null, lastDataChunks: [] };
+    sock.data = { id: id, timeout: null, onDataBufferEvent: null, lastDataChunks: [] };
     const session = new SmtpSession(sock.data.id, phase, currentSession);
     sessions.set(sock.data.id, session);
     this.resetTimeout(sock); // Set the idle timeout
@@ -247,8 +230,8 @@ export class SmtpServer {
 
     session.phase = 'data';
     session.isDataMode = true; // Enter DATA mode
-    sock.data.messageWriteStream = new WritableStream();
-    sock.data.messageWriteStreamWriter = sock.data.messageWriteStream.getWriter();
+    sock.data.onDataBufferEvent = new EventEmitter();
+    this.plugins?.registerDataHooks(sock.data.onDataBufferEvent);
 
     const pluginResponse = await this.plugins?.executeDataStartHooks(session);
     this.respond(sock, pluginResponse || SmtpResponse.DataStart.accept());
@@ -256,7 +239,7 @@ export class SmtpServer {
 
   // Handle incoming data stream
   private async handleData(sock: Socket<SocketData>, session: SmtpSession, data: Buffer) {
-    await sock.data.messageWriteStreamWriter?.write(data);
+    sock.data.onDataBufferEvent?.emit('data', session, data);
     // Check if the data ends with single dot '\r\n.\r\n'.
     // We do this by keeping track of the last 5 characters of the last 5 chunks of data
     // This enables telnet-style connections to send a \r, \n, ., \r, \n
@@ -269,7 +252,9 @@ export class SmtpServer {
 
   // Handle the end of the data stream
   private async handleDataEnd(sock: Socket<SocketData>, session: SmtpSession) {
-    await sock.data.messageWriteStreamWriter?.close();
+    sock.data.onDataBufferEvent?.emit('end', session);
+    sock.data.onDataBufferEvent?.removeAllListeners();
+    sock.data.onDataBufferEvent = null;
     session.isDataMode = false; // Exit DATA mode
     session.phase = 'postdata';
     const pluginResponse = await this.plugins?.executeDataEndHooks(session);
