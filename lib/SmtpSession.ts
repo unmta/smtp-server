@@ -19,7 +19,7 @@ export class SmtpSession {
     this.phase = phase; // Connection for new connections, helo for RSET
     this.greetingType = session?.greetingType ? session.greetingType : null;
     this.isSecure = session?.isSecure ? session.isSecure : false;
-    this.isAuthenticated = false;
+    this.isAuthenticated = session?.isAuthenticated ? session.isAuthenticated : false; // Once authenticated, a client cannot complete another AUTH command in the same session (https://datatracker.ietf.org/doc/html/rfc4954#section-4)
     this.isDataMode = false;
     this.sender = null;
     this.recipients = [];

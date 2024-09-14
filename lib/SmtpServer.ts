@@ -300,12 +300,16 @@ export class SmtpServer {
       return;
     }
 
-    if (command.argument) {
-      const email = new EnvelopeAddress(command.argument);
+    if (command.parameters.length) {
+      if (session.greetingType === 'HELO' && command.parameters.length > 1) {
+        this.respond(sock, new SmtpResponseAny(500, '5.5.1 Command unrecognized: extended parameters not allowed')); // HELO only supports a single parameter
+        return;
+      }
+      const email = new EnvelopeAddress(command.parameters[0]);
       if (email.address) {
         session.sender = email;
         session.phase = 'sender';
-        const pluginResponse = await this.plugins?.executeMailFromHooks(session, email);
+        const pluginResponse = await this.plugins?.executeMailFromHooks(session, email, command);
         this.respond(sock, pluginResponse || SmtpResponse.MailFrom.accept());
       } else {
         this.respond(sock, new SmtpResponseAny(501)); // Invalid email address
@@ -321,12 +325,16 @@ export class SmtpServer {
       return;
     }
 
-    if (command.argument) {
-      const email = new EnvelopeAddress(command.argument);
+    if (command.parameters.length) {
+      if (session.greetingType === 'HELO' && command.parameters.length > 1) {
+        this.respond(sock, new SmtpResponseAny(500, '5.5.1 Command unrecognized: extended parameters not allowed')); // HELO only supports a single parameter
+        return;
+      }
+      const email = new EnvelopeAddress(command.parameters[0]);
       if (email.address) {
         session.recipients.push(email);
         session.phase = 'recipient';
-        const pluginResponse = await this.plugins?.executeRcptToHooks(session, email);
+        const pluginResponse = await this.plugins?.executeRcptToHooks(session, email, command);
         this.respond(sock, pluginResponse || SmtpResponse.RcptTo.reject()); // RCPT TO phase REQUIRES plugin to accept
       } else {
         this.respond(sock, new SmtpResponseAny(501)); // Invalid email address

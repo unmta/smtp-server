@@ -60,11 +60,13 @@ export interface SmtpPlugin {
   ) => Promise<void | AuthAccept | AuthDefer | AuthReject> | void | AuthAccept | AuthDefer | AuthReject;
   onMailFrom?: (
     session: SmtpPluginSession,
-    address: EnvelopeAddress
+    address: EnvelopeAddress,
+    command: SmtpCommand
   ) => Promise<void | MailFromAccept | MailFromDefer | MailFromReject> | void | MailFromAccept | MailFromDefer | MailFromReject;
   onRcptTo?: (
     session: SmtpPluginSession,
-    address: EnvelopeAddress
+    address: EnvelopeAddress,
+    command: SmtpCommand
   ) => Promise<void | RcptToAccept | RcptToDefer | RcptToReject> | void | RcptToAccept | RcptToDefer | RcptToReject;
   onDataStart?: (
     session: SmtpPluginSession
@@ -133,19 +135,19 @@ class SmtpPluginManager {
   }
 
   // Execute hooks for MAIL FROM
-  async executeMailFromHooks(session: SmtpSession, address: EnvelopeAddress) {
+  async executeMailFromHooks(session: SmtpSession, address: EnvelopeAddress, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onMailFrom) {
-        return await plugin.onMailFrom(new SmtpPluginSession(plugin.pluginName, session), address);
+        return await plugin.onMailFrom(new SmtpPluginSession(plugin.pluginName, session), address, command);
       }
     }
   }
 
   // Execute hooks for RCPT TO
-  async executeRcptToHooks(session: SmtpSession, address: EnvelopeAddress) {
+  async executeRcptToHooks(session: SmtpSession, address: EnvelopeAddress, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onRcptTo) {
-        return await plugin.onRcptTo(new SmtpPluginSession(plugin.pluginName, session), address);
+        return await plugin.onRcptTo(new SmtpPluginSession(plugin.pluginName, session), address, command);
       }
     }
   }
