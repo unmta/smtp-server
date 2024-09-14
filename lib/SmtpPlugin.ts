@@ -4,6 +4,9 @@ import type {
   ConnectAccept,
   ConnectDefer,
   ConnectReject,
+  AuthAccept,
+  AuthDefer,
+  AuthReject,
   HeloAccept,
   HeloDefer,
   HeloReject,
@@ -50,6 +53,11 @@ export interface SmtpPlugin {
     hostname: string,
     verb: 'HELO' | 'EHLO'
   ) => Promise<void | HeloAccept | HeloDefer | HeloReject> | void | HeloAccept | HeloDefer | HeloReject;
+  onAuth?: (
+    session: SmtpPluginSession,
+    username: string,
+    password: string
+  ) => Promise<void | AuthAccept | AuthDefer | AuthReject> | void | AuthAccept | AuthDefer | AuthReject;
   onMailFrom?: (
     session: SmtpPluginSession,
     address: EnvelopeAddress
@@ -111,6 +119,15 @@ class SmtpPluginManager {
     for (const plugin of this.plugins) {
       if (plugin.onHelo) {
         return await plugin.onHelo(new SmtpPluginSession(plugin.pluginName, session), command.argument || '', command.name === 'EHLO' ? 'EHLO' : 'HELO');
+      }
+    }
+  }
+
+  // Execute hooks for AUTH
+  async executeAuthHooks(session: SmtpSession, username: string, password: string) {
+    for (const plugin of this.plugins) {
+      if (plugin.onAuth) {
+        return await plugin.onAuth(new SmtpPluginSession(plugin.pluginName, session), username, password);
       }
     }
   }

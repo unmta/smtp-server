@@ -5,8 +5,10 @@ const unfig: {
     port: number;
     listen: string;
     hostname: string | undefined;
-    enableAuth: boolean;
-    enableStartTLS: boolean;
+  };
+  auth: {
+    enable: boolean;
+    requireTLS: boolean;
   };
   tls: {
     enableStartTLS: boolean;

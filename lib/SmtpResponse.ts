@@ -9,16 +9,18 @@ export const smtpResponses: { [key: number]: string } = {
   214: 'See: https://unmta.com/',
   220: `${domain} ESMTP unMta v${version} ready`,
   221: `${domain} Service ready`,
-  235: 'Service closing transmission channel',
+  235: 'Authentication successful',
   250: 'Requested mail action okay, completed',
   251: 'User not local; will forward',
   252: 'Cannot VRFY user, but will accept message and attempt delivery',
   // 334: '',
   354: 'Start mail input; end with <CRLF>.<CRLF>',
   421: `${domain} Service not available, closing transmission channel`, // Will close connection (https://datatracker.ietf.org/doc/html/rfc5321#section-3.8)
+  432: 'A password transition is needed',
   450: 'Requested mail action not taken: mailbox unavailable',
   451: 'Requested action aborted: local error in processing',
   452: 'Requested action not taken: insufficient system storage',
+  454: 'Temporary authentication failure',
   455: 'Server unable to accommodate parameters',
   500: 'Syntax error, command unrecognized',
   501: 'Syntax error in parameters or arguments',
@@ -26,7 +28,8 @@ export const smtpResponses: { [key: number]: string } = {
   503: 'Bad sequence of commands',
   504: 'Command parameter not implemented',
   521: `${domain} does not accept mail`, // https://datatracker.ietf.org/doc/html/rfc1846
-  // 535: '',
+  530: 'Authentication required', // TODO implement (mail from, etc?)
+  535: 'Authentication credentials invalid',
   541: 'Message rejected due to content policy violation', //Non-standard but used by some mail servers
   550: 'Requested action not taken: mailbox unavailable',
   551: 'User not local',
@@ -126,6 +129,45 @@ class Helo {
   }
   static reject(code: HeloRejectCode = DefaultHeloRejectCode, message: string | null = null) {
     return new HeloReject(code, message);
+  }
+}
+
+/**
+ * Auth Responses
+ */
+type AuthAcceptCode = 235;
+const DefaultAuthAcceptCode = 235;
+export class AuthAccept extends SmtpResponseAny {
+  constructor(code: AuthAcceptCode, message: string | null) {
+    super(code, message || smtpResponses[code]);
+  }
+}
+
+type AuthDeferCode = 421 | 432 | 450 | 451 | 454;
+const DefaultAuthDeferCode = 421;
+export class AuthDefer extends SmtpResponseAny {
+  constructor(code: AuthDeferCode, message: string | null) {
+    super(code, message || smtpResponses[code]);
+  }
+}
+
+type AuthRejectCode = 535;
+const DefaultAuthRejectCode = 535;
+export class AuthReject extends SmtpResponseAny {
+  constructor(code: AuthRejectCode, message: string | null) {
+    super(code, message || smtpResponses[code]);
+  }
+}
+
+class Auth {
+  static accept(code: AuthAcceptCode = DefaultAuthAcceptCode, message: string | null = null) {
+    return new AuthAccept(code, message);
+  }
+  static defer(code: AuthDeferCode = DefaultAuthDeferCode, message: string | null = null) {
+    return new AuthDefer(code, message);
+  }
+  static reject(code: AuthRejectCode = DefaultAuthRejectCode, message: string | null = null) {
+    return new AuthReject(code, message);
   }
 }
 
@@ -525,6 +567,9 @@ export class SmtpResponse {
   }
   static get Helo() {
     return Helo;
+  }
+  static get Auth() {
+    return Auth;
   }
   static get MailFrom() {
     return MailFrom;

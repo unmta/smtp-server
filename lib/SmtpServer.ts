@@ -2,7 +2,18 @@ import type { Socket } from 'bun';
 import unfig from '../unfig.toml';
 import { EventEmitter } from 'events';
 import { hostname } from 'os';
-import { SmtpSession, EnvelopeAddress, smtpPluginManager, SmtpCommand, SmtpResponse, SmtpResponseAny, ConnectAccept, HeloAccept, RsetAccept } from './';
+import {
+  SmtpSession,
+  EnvelopeAddress,
+  smtpPluginManager,
+  SmtpCommand,
+  SmtpResponse,
+  SmtpResponseAny,
+  ConnectAccept,
+  HeloAccept,
+  AuthAccept,
+  RsetAccept,
+} from './';
 import logger from './Logger';
 
 // A Map to keep track of sessions keyed by socket
@@ -13,6 +24,7 @@ const sessions = new Map<number, SmtpSession>();
 interface SocketData {
   id: number;
   timeout?: Timer | null;
+  authenticating: boolean | string; // true or string of username during AUTH LOGIN process
   onDataBufferEvent?: EventEmitter | null; // Event emitter for incoming message data stream
   lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
 }
@@ -33,7 +45,7 @@ export class SmtpServer {
       port: unfig.smtp.port,
       //tls: unfig.tls.enableStartTLS ? { key: Bun.file(unfig.tls.key), cert: Bun.file(unfig.tls.cert) } : undefined,
       // reusePort: true,
-      data: { id: 0, timeout: null, onDataBufferEvent: null, lastDataChunks: [] },
+      data: { id: 0, timeout: null, authenticating: false, onDataBufferEvent: null, lastDataChunks: [] },
       socket: {
         async open(sock) {
           const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
@@ -61,9 +73,20 @@ export class SmtpServer {
             return;
           }
 
+          // If sock.data.auth is true or a string, we're in the AUTH LOGIN process
+          if (sock.data.authenticating !== false) {
+            smtp.handleAuthLogin(command, sock, session);
+            return;
+          }
+
           // Handle HELO/EHLO command
           if (command.name === 'HELO' || command.name === 'EHLO') {
             smtp.handleHeloCommand(command, sock, session);
+            return;
+          }
+          // Handle AUTH command
+          if (command.name === 'AUTH') {
+            smtp.handleAuthCommand(command, sock, session);
             return;
           }
           // Handle MAIL FROM command
@@ -138,7 +161,7 @@ export class SmtpServer {
     logger.debug(`${newConnection ? 'Setting' : 'Resetting'} session ${id} to ${phase} phase`);
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
-    sock.data = { id: id, timeout: null, onDataBufferEvent: null, lastDataChunks: [] };
+    sock.data = { id: id, timeout: null, authenticating: false, onDataBufferEvent: null, lastDataChunks: [] };
     const session = new SmtpSession(sock.data.id, phase, currentSession);
     sessions.set(sock.data.id, session);
     this.resetTimeout(sock); // Set the idle timeout
@@ -156,6 +179,7 @@ export class SmtpServer {
       this.resetSession(sock, sock.data.id, 'connection', session);
     }
     session.phase = 'helo';
+    session.greetingType = command.name === 'EHLO' ? 'EHLO' : 'HELO';
 
     const pluginResponse = await this.plugins?.executeHeloHooks(session, command);
     if (command.name === 'EHLO') {
@@ -165,7 +189,7 @@ export class SmtpServer {
       } else {
         // Send extended response
         const ehloLines: string[] = [];
-        if (unfig.smtp.enableAuth) ehloLines.push('AUTH LOGIN PLAIN');
+        if (unfig.auth.enable && (!unfig.auth.requireTLS || session.isSecure)) ehloLines.push('AUTH LOGIN PLAIN');
         if (unfig.tls.enableStartTLS) ehloLines.push('STARTTLS');
         ehloLines.push('SIZE 0'); // TODO: Add SIZE support
         this.respondExtended(
@@ -180,8 +204,98 @@ export class SmtpServer {
     }
   }
 
+  private async handleAuthCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+    // Ensure we've completed the HELO (EHLO) phase
+    if (session.phase !== 'helo' && session.phase !== 'auth') {
+      this.respond(sock, new SmtpResponseAny(503));
+      return;
+    }
+    // Ensure AUTH is enabled
+    if (!unfig.auth.enable) {
+      this.handleUnknownCommand(command, sock, session);
+      return;
+    }
+    // Ensure we're using EHLO
+    if (session.greetingType !== 'EHLO') {
+      this.respond(sock, new SmtpResponseAny(503, 'Authentication requires EHLO'));
+      return;
+    }
+    // Ensure we're not already authenticated
+    if (session.isAuthenticated) {
+      this.respond(sock, new SmtpResponseAny(503, 'Already authenticated'));
+      return;
+    }
+    // Ensure we're using a secure connection if required
+    if (unfig.auth.requireTLS && !session.isSecure) {
+      this.respond(sock, new SmtpResponseAny(530, 'Authentication requires a secure connection'));
+      return;
+    }
+    // Ensure correct parameters
+    const args = command.argument?.split(/\s+/);
+    if (
+      !command.argument || // No args after the AUTH command
+      (args && args[0].toUpperCase() === 'LOGIN' && args.length !== 1) || // LOGIN requires no args
+      (args && args[0].toUpperCase() === 'PLAIN' && args.length !== 2) // PLAIN requires exactly 1 arg
+    ) {
+      this.respond(sock, new SmtpResponseAny(501));
+      return;
+    }
+    // Should be a valid AUTH command. Set phase to 'auth'
+    session.phase = 'auth';
+
+    // Parse AUTH PLAIN
+    if (args && args[0].toUpperCase() === 'PLAIN') {
+      const auth = Buffer.from(args[1], 'base64').toString().split('\0');
+      if (auth.length !== 3) {
+        this.respond(sock, new SmtpResponseAny(501));
+        return;
+      }
+      this.runAuthPlugins(command, sock, session, auth[1], auth[2]);
+      return;
+    }
+    // Parse AUTH LOGIN
+    if (args && args[0].toUpperCase() === 'LOGIN') {
+      sock.data.authenticating = true; // Flag that we're in the AUTH LOGIN process
+      this.write(sock, '334 VXNlcm5hbWU6'); // Request username
+      return; // Send back to data listener for referral to handleAuthLogin
+    }
+
+    // If we get here, we don't know what to do with the AUTH command
+    this.respond(sock, new SmtpResponseAny(501));
+  }
+
+  // Handle the multi-step AUTH LOGIN commands
+  private handleAuthLogin(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+    // If no command data found
+    if (!command.raw) {
+      sock.data.authenticating = false;
+      this.respond(sock, new SmtpResponseAny(501));
+      return;
+    }
+
+    const data = Buffer.from(command.raw, 'base64').toString();
+    // If we're in the username phase
+    if (sock.data.authenticating === true) {
+      sock.data.authenticating = data; // Store the username
+      this.write(sock, '334 UGFzc3dvcmQ6'); // Request password
+      return;
+    }
+
+    // We're in the password phase
+    const username = sock.data.authenticating as string;
+    const password = data;
+    this.runAuthPlugins(command, sock, session, username, password);
+  }
+
+  private async runAuthPlugins(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession, username: string, password: string) {
+    sock.data.authenticating = false; // Reset the authenticating flag
+    const pluginResponse = await this.plugins?.executeAuthHooks(session, username, password);
+    if (pluginResponse && pluginResponse instanceof AuthAccept) session.isAuthenticated = true; // Set authenticated flag if plugin accepts
+    this.respond(sock, pluginResponse || new SmtpResponseAny(535)); // Return negative response if no plugins have anything to say
+  }
+
   private async handleMailFromCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
-    if (session.phase !== 'helo') {
+    if (session.phase !== 'helo' && session.phase !== 'auth') {
       this.respond(sock, new SmtpResponseAny(503));
       return;
     }
