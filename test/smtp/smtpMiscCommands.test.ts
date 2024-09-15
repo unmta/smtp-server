@@ -19,7 +19,7 @@ describe('SMTP Server', async () => {
     await smtpClient.receive();
     await smtpClient.send('NOOP');
     const response = await smtpClient.receive();
-    expect(response).toContain('250 OK');
+    expect(response).toContain('250 2.0.0 OK');
   });
 
   it('should respond to HELP command', async () => {
@@ -31,18 +31,18 @@ describe('SMTP Server', async () => {
   it('should respond to VRFY command', async () => {
     await smtpClient.send('VRFY');
     const response = await smtpClient.receive();
-    expect(response).toContain('252 Cannot VRFY user, but will accept message and attempt delivery');
+    expect(response).toContain('252 2.5.0 Cannot VRFY user, but will accept message and attempt delivery');
   });
 
   it('should respond to RSET command', async () => {
     await smtpClient.send('RSET');
     const response1 = await smtpClient.receive();
-    expect(response1).toContain('250 Requested mail action okay, completed');
+    expect(response1).toContain('250 2.1.5 OK');
   });
 
   it('should respond to invalid command', async () => {
     await smtpClient.send('OHHI MARK');
     const response1 = await smtpClient.receive();
-    expect(response1).toContain('500 Syntax error, command unrecognized');
+    expect(response1).toContain('500 5.5.2 Syntax error, command unrecognized');
   });
 });

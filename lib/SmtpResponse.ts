@@ -155,6 +155,7 @@ export class AuthDefer extends SmtpResponseAny {
 }
 
 const authRejectResponses = {
+  534: '5.7.9 Authentication mechanism is too weak',
   535: '5.7.8 Authentication credentials invalid',
 };
 const defaultAuthRejectCode = 535;
@@ -381,7 +382,7 @@ export class DataEndReject extends SmtpResponseAny {
 }
 
 class DataEnd {
-  static accept(code: DataEndAcceptCode = defaultDataEndAcceptCode, message: string | null = 'Message queued for delivery') {
+  static accept(code: DataEndAcceptCode = defaultDataEndAcceptCode, message: string | null = null) {
     return new DataEndAccept(code, message);
   }
   static defer(code: DataEndDeferCode = defaultDataEndDeferCode, message: string | null = null) {
@@ -580,7 +581,7 @@ export class NoopReject extends SmtpResponseAny {
 }
 
 class Noop {
-  static accept(code: NoopAcceptCode = defaultNoopAcceptCode, message: string | null = 'OK') {
+  static accept(code: NoopAcceptCode = defaultNoopAcceptCode, message: string | null = null) {
     return new NoopAccept(code, message);
   }
   static defer(code: NoopDeferCode = defaultNoopDeferCode, message: string | null = null) {

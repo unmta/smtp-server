@@ -24,13 +24,13 @@ describe('SMTP Server', async () => {
   it('should respond to MAIL FROM command', async () => {
     await smtpClient.send('MAIL FROM:<test@example.com>');
     const response = await smtpClient.receive();
-    expect(response).toContain('250 Requested mail action okay, completed');
+    expect(response).toContain('250 2.1.0 OK');
   });
 
   it('should respond to RCPT TO command', async () => {
     await smtpClient.send('RCPT TO:<recipient@example.com>');
     const response = await smtpClient.receive();
-    expect(response).toContain('250 Requested mail action okay, completed');
+    expect(response).toContain('250 2.1.0 OK');
   });
 
   it('should handle the DATA command and accept the message', async () => {
@@ -40,12 +40,12 @@ describe('SMTP Server', async () => {
 
     await smtpClient.send('This is a test message..\r\n.');
     const response2 = await smtpClient.receive();
-    expect(response2).toContain('250 Message queued for delivery');
+    expect(response2).toContain('250 2.0.0 OK: Message accepted for delivery');
   });
 
   it('should close the connection when QUIT is received', async () => {
     await smtpClient.send('QUIT');
     const response = await smtpClient.receive();
-    expect(response).toContain('221 Stay classy');
+    expect(response).toContain('221 2.0.0 Stay classy');
   });
 });

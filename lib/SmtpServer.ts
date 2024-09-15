@@ -1,7 +1,6 @@
 import type { Socket } from 'bun';
 import unfig from '../unfig.toml';
 import { EventEmitter } from 'events';
-import { hostname } from 'os';
 import {
   SmtpSession,
   EnvelopeAddress,
@@ -170,7 +169,7 @@ export class SmtpServer {
 
   private async handleHeloCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (!command.argument) {
-      this.respond(sock, SmtpResponse.Helo.reject(501));
+      this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
       return;
     }
     // If we're past the helo phase, reset the session
@@ -192,22 +191,18 @@ export class SmtpServer {
         if (unfig.auth.enable && (!unfig.auth.requireTLS || session.isSecure)) ehloLines.push('AUTH LOGIN PLAIN');
         if (unfig.tls.enableStartTLS) ehloLines.push('STARTTLS');
         ehloLines.push('SIZE 0'); // TODO: Add SIZE support
-        this.respondExtended(
-          sock,
-          pluginResponse || SmtpResponse.Helo.accept(250, `${unfig.smtp.hostname || hostname} Hello ${command.argument}, pleased to meet you`),
-          ehloLines
-        );
+        this.respondExtended(sock, pluginResponse || SmtpResponse.Helo.accept(), ehloLines);
       }
     } else {
       // If HELO, send regular response
-      this.respond(sock, pluginResponse || SmtpResponse.Helo.accept(250, `${unfig.smtp.hostname || hostname} Hello ${command.argument}, pleased to meet you`));
+      this.respond(sock, pluginResponse || SmtpResponse.Helo.accept());
     }
   }
 
   private async handleAuthCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     // Ensure we've completed the HELO (EHLO) phase
     if (session.phase !== 'helo' && session.phase !== 'auth') {
-      this.respond(sock, new SmtpResponseAny(503));
+      this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands'));
       return;
     }
     // Ensure AUTH is enabled
@@ -217,17 +212,17 @@ export class SmtpServer {
     }
     // Ensure we're using EHLO
     if (session.greetingType !== 'EHLO') {
-      this.respond(sock, new SmtpResponseAny(503, 'Authentication requires EHLO'));
+      this.respond(sock, new SmtpResponseAny(503, '5.5.1 Authentication requires EHLO'));
       return;
     }
     // Ensure we're not already authenticated
     if (session.isAuthenticated) {
-      this.respond(sock, new SmtpResponseAny(503, 'Already authenticated'));
+      this.respond(sock, new SmtpResponseAny(503, '5.7.0 Already authenticated'));
       return;
     }
     // Ensure we're using a secure connection if required
     if (unfig.auth.requireTLS && !session.isSecure) {
-      this.respond(sock, new SmtpResponseAny(530, 'Authentication requires a secure connection'));
+      this.respond(sock, new SmtpResponseAny(530, '5.7.0 Authentication requires a secure connection'));
       return;
     }
     // Ensure correct parameters
@@ -237,7 +232,7 @@ export class SmtpServer {
       (args && args[0].toUpperCase() === 'LOGIN' && args.length !== 1) || // LOGIN requires no args
       (args && args[0].toUpperCase() === 'PLAIN' && args.length !== 2) // PLAIN requires exactly 1 arg
     ) {
-      this.respond(sock, new SmtpResponseAny(501));
+      this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
       return;
     }
     // Should be a valid AUTH command. Set phase to 'auth'
@@ -247,7 +242,7 @@ export class SmtpServer {
     if (args && args[0].toUpperCase() === 'PLAIN') {
       const auth = Buffer.from(args[1], 'base64').toString().split('\0');
       if (auth.length !== 3) {
-        this.respond(sock, new SmtpResponseAny(501));
+        this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
         return;
       }
       this.runAuthPlugins(command, sock, session, auth[1], auth[2]);
@@ -261,7 +256,7 @@ export class SmtpServer {
     }
 
     // If we get here, we don't know what to do with the AUTH command
-    this.respond(sock, new SmtpResponseAny(501));
+    this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
   }
 
   // Handle the multi-step AUTH LOGIN commands
@@ -269,7 +264,7 @@ export class SmtpServer {
     // If no command data found
     if (!command.raw) {
       sock.data.authenticating = false;
-      this.respond(sock, new SmtpResponseAny(501));
+      this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
       return;
     }
 
@@ -291,12 +286,12 @@ export class SmtpServer {
     sock.data.authenticating = false; // Reset the authenticating flag
     const pluginResponse = await this.plugins?.executeAuthHooks(session, username, password);
     if (pluginResponse && pluginResponse instanceof AuthAccept) session.isAuthenticated = true; // Set authenticated flag if plugin accepts
-    this.respond(sock, pluginResponse || new SmtpResponseAny(535)); // Return negative response if no plugins have anything to say
+    this.respond(sock, pluginResponse || SmtpResponse.Auth.reject()); // Return negative response if no plugins have anything to say
   }
 
   private async handleMailFromCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (session.phase !== 'helo' && session.phase !== 'auth') {
-      this.respond(sock, new SmtpResponseAny(503));
+      this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands'));
       return;
     }
 
@@ -312,16 +307,16 @@ export class SmtpServer {
         const pluginResponse = await this.plugins?.executeMailFromHooks(session, email, command);
         this.respond(sock, pluginResponse || SmtpResponse.MailFrom.accept());
       } else {
-        this.respond(sock, new SmtpResponseAny(501)); // Invalid email address
+        this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments')); // Invalid email address
       }
     } else {
-      this.respond(sock, new SmtpResponseAny(501));
+      this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
     }
   }
 
   private async handleRcptToCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
     if (session?.phase !== 'sender' && session?.phase !== 'recipient') {
-      this.respond(sock, new SmtpResponseAny(503));
+      this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands'));
       return;
     }
 
@@ -337,17 +332,17 @@ export class SmtpServer {
         const pluginResponse = await this.plugins?.executeRcptToHooks(session, email, command);
         this.respond(sock, pluginResponse || SmtpResponse.RcptTo.reject()); // RCPT TO phase REQUIRES plugin to accept
       } else {
-        this.respond(sock, new SmtpResponseAny(501)); // Invalid email address
+        this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments')); // Invalid email address
       }
     } else {
-      this.respond(sock, new SmtpResponseAny(501));
+      this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
     }
   }
 
   // Handle the DATA command
   private async handleDataCommand(sock: Socket<SocketData>, session: SmtpSession) {
     if (session.phase !== 'recipient') {
-      this.respond(sock, new SmtpResponseAny(503));
+      this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands'));
       return;
     }
 
@@ -430,7 +425,7 @@ export class SmtpServer {
     // Set a new timeout
     sock.data.timeout = setTimeout(() => {
       logger.debug(`Session ${sock.data.id} timed out due to inactivity.`); // TODO add more info about client (ip, etc.)
-      this.respond(sock, new SmtpResponseAny(421, 'Connection timed out due to inactivity'), true);
+      this.respond(sock, new SmtpResponseAny(421, '4.4.2 Connection timed out due to inactivity'), true);
     }, 15000);
   }
 
