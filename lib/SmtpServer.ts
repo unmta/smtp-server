@@ -34,6 +34,13 @@ interface SmtpSocket extends Socket {
   data: SocketData;
 }
 
+interface SocketError extends Error {
+  errno?: number | undefined;
+  code?: string | undefined;
+  path?: string | undefined;
+  syscall?: string | undefined;
+}
+
 export class SmtpServer {
   private plugins: typeof smtpPluginManager | null;
 
@@ -141,8 +148,11 @@ export class SmtpServer {
         await smtp.endSocket(sock);
       });
 
-      sock.on('error', async (err) => {
-        logger.error(`Client ${remoteAddress} connection error: ${err}`); // TODO add more info about client (ip, etc.)
+      sock.on('error', async (err: SocketError) => {
+        // We can safely ignore ECONNRESET errors, as they are usually caused by the client disconnecting
+        if (err.code !== 'ECONNRESET') {
+          logger.error(`Client ${remoteAddress} connection error: ${err}`); // TODO add more info about client (ip, etc.)
+        }
         await smtp.endSocket(sock);
       });
     });
@@ -443,8 +453,8 @@ export class SmtpServer {
 
   private write(sock: SmtpSocket, message: string, end = false) {
     logger.smtp(`< ${message}`);
-    sock.write(`${message}\r\n`);
-    if (end) sock.end();
+    if (!end) sock.write(`${message}\r\n`);
+    else sock.end(`${message}\r\n`);
   }
 
   private async endSocket(sock: SmtpSocket) {
