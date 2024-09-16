@@ -138,18 +138,12 @@ export class SmtpServer {
       });
 
       sock.on('end', async () => {
-        // Trigger executeCloseHooks and clean up the session when the connection is closed
-        if (sock.data?.id) {
-          const session = sessions.get(sock.data.id);
-          if (session) {
-            await smtp.plugins?.executeCloseHooks(session);
-            logger.debug(`Client ${remoteAddress} disconnected. ${Date.now() - session.startTime}ms`); // TODO add more info about client (ip, etc.)
-          }
-          sessions.delete(sock.data.id);
-        }
-        if (sock.data?.timeout) {
-          clearTimeout(sock.data.timeout);
-        }
+        await smtp.endSocket(sock);
+      });
+
+      sock.on('error', async (err) => {
+        logger.error(`Client ${remoteAddress} connection error: ${err}`); // TODO add more info about client (ip, etc.)
+        await smtp.endSocket(sock);
       });
     });
 
@@ -451,5 +445,21 @@ export class SmtpServer {
     logger.smtp(`< ${message}`);
     sock.write(`${message}\r\n`);
     if (end) sock.end();
+  }
+
+  private async endSocket(sock: SmtpSocket) {
+    // Trigger executeCloseHooks and clean up the session when the connection is closed
+    if (sock.data?.id) {
+      const session = sessions.get(sock.data.id);
+      if (session) {
+        await this.plugins?.executeCloseHooks(session);
+        //TODO add remoteAddress to session and reinstate variable below:
+        logger.debug(`Client [[remoteAddress]] disconnected. ${Date.now() - session.startTime}ms`); // TODO add more info about client (ip, etc.)
+      }
+      sessions.delete(sock.data.id);
+    }
+    if (sock.data?.timeout) {
+      clearTimeout(sock.data.timeout);
+    }
   }
 }
