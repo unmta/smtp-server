@@ -1,5 +1,5 @@
 import { createServer, Server } from 'net';
-import { TLSSocket, createSecureContext } from 'tls';
+import { TLSSocket, createSecureContext, type SecureContext } from 'tls';
 import fs from 'fs';
 import toml from 'toml';
 import { EventEmitter } from 'events';
@@ -240,12 +240,21 @@ export class SmtpServer {
       this.respond(sock, new SmtpResponseAny(454, '4.7.0 TLS not available due to temporary problem'));
       return;
     }
+
+    let secureContext: SecureContext;
+    let tlsSocket: SmtpTlsSocket;
+    try {
+      secureContext = createSecureContext({ key: tlsKey, cert: tlsCert });
+      tlsSocket = new TLSSocket(sock, { secureContext, isServer: true }) as SmtpTlsSocket;
+    } catch (err) {
+      logger.error(`Error creating TLS socket: ${err}`); // If you're seeing this, you probably have an invalid certificate or key
+      this.respond(sock, new SmtpResponseAny(454, '4.7.0 TLS not available due to temporary problem'));
+      return;
+    }
     this.respond(sock, new SmtpResponseAny(220, '2.7.0 Ready to start TLS'));
-    // Remove listeners, leave error listener
+    // Remove listeners, leave error listener in case of TLS handshake error
     sock.removeAllListeners('data');
     sock.removeAllListeners('end');
-    const secureContext = createSecureContext({ key: tlsKey, cert: tlsCert });
-    const tlsSocket = new TLSSocket(sock, { secureContext, isServer: true }) as SmtpTlsSocket;
     tlsSocket.on('secure', () => {
       logger.debug(`TLS handshake complete with ${tlsSocket.remoteAddress}`);
       session.isSecure = true;
