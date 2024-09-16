@@ -1,5 +1,5 @@
 // logger.ts
-import { createLogger, format, http, transports } from 'winston';
+import { createLogger, format, transports, addColors } from 'winston';
 
 // Define custom log levels
 const customLevels = {
@@ -46,6 +46,6 @@ const logger = createLogger({
 });
 
 // Set colorization for the custom log levels
-require('winston').addColors(customLevels.colors);
+addColors(customLevels.colors);
 
 export default logger;

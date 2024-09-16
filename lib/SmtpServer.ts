@@ -1,5 +1,6 @@
 import { createServer, Socket } from 'net';
-import unfig from '../unfig.toml';
+import fs from 'fs';
+import toml from 'toml';
 import { EventEmitter } from 'events';
 import {
   SmtpSession,
@@ -14,6 +15,8 @@ import {
   RsetAccept,
 } from './';
 import logger from './Logger';
+
+const unfig = toml.parse(fs.readFileSync('unfig.toml', 'utf-8'));
 
 // A Map to keep track of sessions keyed by socket
 let sessionCounter = 1;

@@ -1,7 +1,9 @@
 import { hostname } from 'os';
 import { version } from '../package.json';
-import unfig from '../unfig.toml';
+import fs from 'fs';
+import toml from 'toml';
 
+const unfig = toml.parse(fs.readFileSync('unfig.toml', 'utf-8'));
 const domain = unfig.smtp.hostname || hostname().toLowerCase();
 
 /**

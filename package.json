@@ -2,13 +2,14 @@
   "name": "@unmta/smtp-server",
   "version": "0.0.1",
   "description": "A fast, modern, lightweight SMTP server, easily extendable with TypeScript and JavaScript.",
+  "type": "module",
   "main": "index.ts",
   "bun": {
     "version": ">=1.1.26"
   },
   "engines": {
     "bun": ">=1.1.26",
-    "node": "incompatible"
+    "node": ">=20"
   },
   "directories": {
     "lib": "lib"
@@ -48,6 +49,7 @@
   "dependencies": {
     "address-rfc2821": "^2.1.2",
     "address-rfc2822": "^2.2.2",
+    "toml": "^3.0.0",
     "winston": "^3.14.2"
   }
 }
