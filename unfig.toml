@@ -5,7 +5,7 @@ listen="localhost" # Use 0.0.0.0 to listen on all interfaces
 
 [auth]
 enable=true
-requireTLS=false
+requireTLS=true
 
 [tls]
 enableStartTLS=true

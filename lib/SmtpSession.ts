@@ -1,4 +1,5 @@
 import { Socket } from 'net';
+import { TLSSocket } from 'tls';
 import { EventEmitter } from 'events';
 import { EnvelopeAddress } from './EmailAddress';
 
@@ -11,6 +12,9 @@ interface SocketData {
   lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
 }
 export interface SmtpSocket extends Socket {
+  data: SocketData;
+}
+export interface SmtpTlsSocket extends TLSSocket {
   data: SocketData;
 }
 
@@ -28,7 +32,7 @@ export class SmtpSession {
   public recipients: EnvelopeAddress[];
   public pluginData: Record<string, Record<string, any>> = {};
 
-  constructor(sock: SmtpSocket, phase: 'connection' | 'helo' = 'connection', session: SmtpSession | null = null) {
+  constructor(sock: SmtpSocket | SmtpTlsSocket, phase: 'connection' | 'helo' = 'connection', session: SmtpSession | null = null) {
     this.id = sock.data.id;
     this.startTime = session?.startTime ? session.startTime : Date.now(); // Don't reset start time if we already have one
     this.remoteAddress = sock.remoteAddress; // Remote IP address of the client

@@ -1,5 +1,5 @@
 export default class SmtpCommand {
-  private commands = ['HELO', 'EHLO', 'AUTH', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'RSET', 'HELP', 'NOOP', 'VRFY'];
+  private commands = ['HELO', 'EHLO', 'STARTTLS', 'AUTH', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'RSET', 'HELP', 'NOOP', 'VRFY'];
 
   public readonly raw: string; // The raw command that was received
   public readonly name: string | undefined; // The command that was received (HELO, MAIL FROM, etc.)
