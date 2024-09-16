@@ -1,4 +1,4 @@
-import type { Socket } from 'bun';
+import { createServer, Socket } from 'net';
 import unfig from '../unfig.toml';
 import { EventEmitter } from 'events';
 import {
@@ -27,6 +27,9 @@ interface SocketData {
   onDataBufferEvent?: EventEmitter | null; // Event emitter for incoming message data stream
   lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
 }
+interface SmtpSocket extends Socket {
+  data: SocketData;
+}
 
 export class SmtpServer {
   private plugins: typeof smtpPluginManager | null;
@@ -39,124 +42,122 @@ export class SmtpServer {
   public async start() {
     const smtp = this;
     await this.plugins?.executeServerStartHooks();
-    const server = Bun.listen<SocketData>({
-      hostname: unfig.smtp.listen,
-      port: unfig.smtp.port,
-      //tls: unfig.tls.enableStartTLS ? { key: Bun.file(unfig.tls.key), cert: Bun.file(unfig.tls.cert) } : undefined,
-      // reusePort: true,
-      data: { id: 0, timeout: null, authenticating: false, onDataBufferEvent: null, lastDataChunks: [] },
-      socket: {
-        async open(sock) {
-          const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
+    const server = createServer();
 
-          logger.debug(`Client connected from ${sock.remoteAddress}`);
-          const pluginResponse = await smtp.plugins?.executeConnectHooks(session);
-          smtp.respond(sock, pluginResponse || SmtpResponse.Connect.accept(), pluginResponse && !(pluginResponse instanceof ConnectAccept) ? true : false);
-        },
-        data(sock, data) {
-          smtp.resetTimeout(sock); // Reset the idle timeout whenever data is received
+    server.on('connection', async (sock: SmtpSocket) => {
+      const remoteAddress = sock.remoteAddress; // This becomes undefined when the connection is closed, so store it here.
+      const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
+
+      logger.debug(`Client connected from ${remoteAddress}`);
+      const pluginResponse = await smtp.plugins?.executeConnectHooks(session);
+      smtp.respond(sock, pluginResponse || SmtpResponse.Connect.accept(), pluginResponse && !(pluginResponse instanceof ConnectAccept) ? true : false);
+
+      sock.on('data', async (data: Buffer) => {
+        smtp.resetTimeout(sock); // Reset the idle timeout whenever data is received
+        const session = sessions.get(sock.data.id);
+
+        // If we are in DATA mode, handle the incoming data accordingly
+        if (session && session.isDataMode) {
+          smtp.handleData(sock, session, data);
+          return;
+        }
+
+        const command = new SmtpCommand(data);
+        logger.smtp(`> ${command.raw}`);
+
+        if (!session) {
+          logger.warn(`Session ${sock.data.id} not found for socket`); // TODO add more info about session
+          smtp.respond(sock, SmtpResponse.Connect.defer(), true);
+          return;
+        }
+
+        // If sock.data.auth is true or a string, we're in the AUTH LOGIN process
+        if (sock.data.authenticating !== false) {
+          smtp.handleAuthLogin(command, sock, session);
+          return;
+        }
+
+        // Handle HELO/EHLO command
+        if (command.name === 'HELO' || command.name === 'EHLO') {
+          smtp.handleHeloCommand(command, sock, session);
+          return;
+        }
+        // Handle AUTH command
+        if (command.name === 'AUTH') {
+          smtp.handleAuthCommand(command, sock, session);
+          return;
+        }
+        // Handle MAIL FROM command
+        if (command.name === 'MAIL FROM:') {
+          smtp.handleMailFromCommand(command, sock, session);
+          return;
+        }
+        // Handle RCPT TO command
+        if (command.name === 'RCPT TO:') {
+          smtp.handleRcptToCommand(command, sock, session);
+          return;
+        }
+        // Handle DATA command
+        if (command.name === 'DATA') {
+          smtp.handleDataCommand(sock, session);
+          return;
+        }
+        // Handle QUIT command
+        if (command.name === 'QUIT') {
+          smtp.handleQuitCommand(sock, session);
+          return;
+        }
+        // Handle RSET command
+        if (command.name === 'RSET') {
+          smtp.handleRsetCommand(sock, session);
+          return;
+        }
+        // Handle HELP command
+        if (command.name === 'HELP') {
+          smtp.handleHelpCommand(sock, session);
+          return;
+        }
+        // Handle NOOP command
+        if (command.name === 'NOOP') {
+          smtp.handleNoopCommand(sock, session);
+          return;
+        }
+        // Handle VRFY command
+        if (command.name === 'VRFY') {
+          smtp.handleVrfyCommand(command, sock, session);
+          return;
+        }
+        // Handle unknown commands
+        if (!command.name) {
+          smtp.handleUnknownCommand(command, sock, session);
+          return;
+        }
+      });
+
+      sock.on('end', async () => {
+        // Trigger executeCloseHooks and clean up the session when the connection is closed
+        if (sock.data?.id) {
           const session = sessions.get(sock.data.id);
-
-          // If we are in DATA mode, handle the incoming data accordingly
-          if (session && session.isDataMode) {
-            smtp.handleData(sock, session, data);
-            return;
+          if (session) {
+            await smtp.plugins?.executeCloseHooks(session);
+            logger.debug(`Client ${remoteAddress} disconnected. ${Date.now() - session.startTime}ms`); // TODO add more info about client (ip, etc.)
           }
-
-          const command = new SmtpCommand(data);
-          logger.smtp(`> ${command.raw}`);
-
-          if (!session) {
-            logger.warn(`Session ${sock.data.id} not found for socket`); // TODO add more info about session
-            smtp.respond(sock, SmtpResponse.Connect.defer(), true);
-            return;
-          }
-
-          // If sock.data.auth is true or a string, we're in the AUTH LOGIN process
-          if (sock.data.authenticating !== false) {
-            smtp.handleAuthLogin(command, sock, session);
-            return;
-          }
-
-          // Handle HELO/EHLO command
-          if (command.name === 'HELO' || command.name === 'EHLO') {
-            smtp.handleHeloCommand(command, sock, session);
-            return;
-          }
-          // Handle AUTH command
-          if (command.name === 'AUTH') {
-            smtp.handleAuthCommand(command, sock, session);
-            return;
-          }
-          // Handle MAIL FROM command
-          if (command.name === 'MAIL FROM:') {
-            smtp.handleMailFromCommand(command, sock, session);
-            return;
-          }
-          // Handle RCPT TO command
-          if (command.name === 'RCPT TO:') {
-            smtp.handleRcptToCommand(command, sock, session);
-            return;
-          }
-          // Handle DATA command
-          if (command.name === 'DATA') {
-            smtp.handleDataCommand(sock, session);
-            return;
-          }
-          // Handle QUIT command
-          if (command.name === 'QUIT') {
-            smtp.handleQuitCommand(sock, session);
-            return;
-          }
-          // Handle RSET command
-          if (command.name === 'RSET') {
-            smtp.handleRsetCommand(sock, session);
-            return;
-          }
-          // Handle HELP command
-          if (command.name === 'HELP') {
-            smtp.handleHelpCommand(sock, session);
-            return;
-          }
-          // Handle NOOP command
-          if (command.name === 'NOOP') {
-            smtp.handleNoopCommand(sock, session);
-            return;
-          }
-          // Handle VRFY command
-          if (command.name === 'VRFY') {
-            smtp.handleVrfyCommand(command, sock, session);
-            return;
-          }
-          // Handle unknown commands
-          if (!command.name) {
-            smtp.handleUnknownCommand(command, sock, session);
-            return;
-          }
-        },
-        async close(sock) {
-          // Trigger executeCloseHooks and clean up the session when the connection is closed
-          if (sock.data?.id) {
-            const session = sessions.get(sock.data.id);
-            if (session) {
-              await smtp.plugins?.executeCloseHooks(session);
-              logger.debug(`Client ${sock.remoteAddress} disconnected. ${Date.now() - session.startTime}ms`); // TODO add more info about client (ip, etc.)
-            }
-            sessions.delete(sock.data.id);
-          }
-          if (sock.data?.timeout) {
-            clearTimeout(sock.data.timeout);
-          }
-        },
-      },
+          sessions.delete(sock.data.id);
+        }
+        if (sock.data?.timeout) {
+          clearTimeout(sock.data.timeout);
+        }
+      });
     });
 
-    logger.info(`UnMTA SMTP server is running on ${unfig.smtp.listen}:${unfig.smtp.port}`);
+    server.listen(unfig.smtp.port, () => {
+      logger.info(`UnMTA SMTP server is running on ${unfig.smtp.listen}:${unfig.smtp.port}`);
+    });
   }
 
   // (Re)set the session state
-  private resetSession(sock: Socket<SocketData>, id: number, phase: 'connection' | 'helo' = 'connection', currentSession: SmtpSession | null = null) {
-    const newConnection = !sock.data.id;
+  private resetSession(sock: SmtpSocket, id: number, phase: 'connection' | 'helo' = 'connection', currentSession: SmtpSession | null = null) {
+    const newConnection = !sock?.data?.id;
     logger.debug(`${newConnection ? 'Setting' : 'Resetting'} session ${id} to ${phase} phase`);
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
@@ -167,7 +168,7 @@ export class SmtpServer {
     return session;
   }
 
-  private async handleHeloCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleHeloCommand(command: SmtpCommand, sock: SmtpSocket, session: SmtpSession) {
     if (!command.argument) {
       this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
       return;
@@ -199,7 +200,7 @@ export class SmtpServer {
     }
   }
 
-  private async handleAuthCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleAuthCommand(command: SmtpCommand, sock: SmtpSocket, session: SmtpSession) {
     // Ensure we've completed the HELO (EHLO) phase
     if (session.phase !== 'helo' && session.phase !== 'auth') {
       this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands'));
@@ -260,7 +261,7 @@ export class SmtpServer {
   }
 
   // Handle the multi-step AUTH LOGIN commands
-  private handleAuthLogin(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+  private handleAuthLogin(command: SmtpCommand, sock: SmtpSocket, session: SmtpSession) {
     // If no command data found
     if (!command.raw) {
       sock.data.authenticating = false;
@@ -282,14 +283,14 @@ export class SmtpServer {
     this.runAuthPlugins(command, sock, session, username, password);
   }
 
-  private async runAuthPlugins(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession, username: string, password: string) {
+  private async runAuthPlugins(command: SmtpCommand, sock: SmtpSocket, session: SmtpSession, username: string, password: string) {
     sock.data.authenticating = false; // Reset the authenticating flag
     const pluginResponse = await this.plugins?.executeAuthHooks(session, username, password);
     if (pluginResponse && pluginResponse instanceof AuthAccept) session.isAuthenticated = true; // Set authenticated flag if plugin accepts
     this.respond(sock, pluginResponse || SmtpResponse.Auth.reject()); // Return negative response if no plugins have anything to say
   }
 
-  private async handleMailFromCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleMailFromCommand(command: SmtpCommand, sock: SmtpSocket, session: SmtpSession) {
     if (session.phase !== 'helo' && session.phase !== 'auth') {
       this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands'));
       return;
@@ -314,7 +315,7 @@ export class SmtpServer {
     }
   }
 
-  private async handleRcptToCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleRcptToCommand(command: SmtpCommand, sock: SmtpSocket, session: SmtpSession) {
     if (session?.phase !== 'sender' && session?.phase !== 'recipient') {
       this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands'));
       return;
@@ -340,7 +341,7 @@ export class SmtpServer {
   }
 
   // Handle the DATA command
-  private async handleDataCommand(sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleDataCommand(sock: SmtpSocket, session: SmtpSession) {
     if (session.phase !== 'recipient') {
       this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands'));
       return;
@@ -356,7 +357,7 @@ export class SmtpServer {
   }
 
   // Handle incoming data stream
-  private async handleData(sock: Socket<SocketData>, session: SmtpSession, data: Buffer) {
+  private async handleData(sock: SmtpSocket, session: SmtpSession, data: Buffer) {
     sock.data.onDataBufferEvent?.emit('data', session, data);
     // Check if the data ends with single dot '\r\n.\r\n'.
     // We do this by keeping track of the last 5 characters of the last 5 chunks of data
@@ -369,7 +370,7 @@ export class SmtpServer {
   }
 
   // Handle the end of the data stream
-  private async handleDataEnd(sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleDataEnd(sock: SmtpSocket, session: SmtpSession) {
     sock.data.onDataBufferEvent?.emit('end', session);
     sock.data.onDataBufferEvent?.removeAllListeners();
     sock.data.onDataBufferEvent = null;
@@ -379,12 +380,12 @@ export class SmtpServer {
     this.respond(sock, pluginResponse || SmtpResponse.DataEnd.accept());
   }
 
-  private async handleQuitCommand(sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleQuitCommand(sock: SmtpSocket, session: SmtpSession) {
     const pluginResponse = await this.plugins?.executeQuitHooks(session);
     this.respond(sock, pluginResponse || SmtpResponse.Quit.accept(), true);
   }
 
-  private async handleRsetCommand(sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleRsetCommand(sock: SmtpSocket, session: SmtpSession) {
     const pluginResponse = await this.plugins?.executeRsetHooks(session);
     // Only reset session if we're past the connection phase - otherwise there's nothing to reset
     if (session.phase !== 'connection' && (!pluginResponse || pluginResponse instanceof RsetAccept)) {
@@ -394,27 +395,27 @@ export class SmtpServer {
     this.respond(sock, pluginResponse || SmtpResponse.Rset.accept());
   }
 
-  private async handleHelpCommand(sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleHelpCommand(sock: SmtpSocket, session: SmtpSession) {
     const pluginResponse = await this.plugins?.executeHelpHooks(session);
     this.respond(sock, pluginResponse || SmtpResponse.Help.accept());
   }
 
-  private async handleNoopCommand(sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleNoopCommand(sock: SmtpSocket, session: SmtpSession) {
     const pluginResponse = await this.plugins?.executeNoopHooks(session);
     this.respond(sock, pluginResponse || SmtpResponse.Noop.accept());
   }
 
-  private async handleVrfyCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleVrfyCommand(command: SmtpCommand, sock: SmtpSocket, session: SmtpSession) {
     const pluginResponse = await this.plugins?.executeVrfyHooks(session, command); // Pass raw command instead of an EnvelopeAddress to plugins since VRFY data can get weird
     this.respond(sock, pluginResponse || SmtpResponse.Vrfy.accept());
   }
 
-  private async handleUnknownCommand(command: SmtpCommand, sock: Socket<SocketData>, session: SmtpSession) {
+  private async handleUnknownCommand(command: SmtpCommand, sock: SmtpSocket, session: SmtpSession) {
     const pluginResponse = await this.plugins?.executeUnknownHooks(session, command);
     this.respond(sock, pluginResponse || SmtpResponse.Unknown.reject());
   }
 
-  private resetTimeout(sock: Socket<SocketData>, clearOnly = false) {
+  private resetTimeout(sock: SmtpSocket, clearOnly = false) {
     // Clear the existing timeout if set
     if (sock.data?.timeout) {
       clearTimeout(sock.data.timeout);
@@ -429,12 +430,12 @@ export class SmtpServer {
     }, 15000);
   }
 
-  private respond(sock: Socket<SocketData>, response: SmtpResponseAny, end = false) {
+  private respond(sock: SmtpSocket, response: SmtpResponseAny, end = false) {
     if (response.code === 421) end = true; // 421 should always terminate connection https://datatracker.ietf.org/doc/html/rfc5321#section-3.8
     this.write(sock, `${response.code} ${response.message}`, end);
   }
 
-  private respondExtended(sock: Socket<SocketData>, response: SmtpResponseAny, extended: string[], end = false) {
+  private respondExtended(sock: SmtpSocket, response: SmtpResponseAny, extended: string[], end = false) {
     const lines = [response.message, ...extended];
     const messages = lines.map((line, i) => {
       if (i === lines.length - 1) return `${response.code} ${line}`;
@@ -443,7 +444,7 @@ export class SmtpServer {
     this.write(sock, messages.join('\r\n'), end);
   }
 
-  private write(sock: Socket<SocketData>, message: string, end = false) {
+  private write(sock: SmtpSocket, message: string, end = false) {
     logger.smtp(`< ${message}`);
     sock.write(`${message}\r\n`);
     if (end) sock.end();
