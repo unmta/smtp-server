@@ -1,9 +1,24 @@
+import { Socket } from 'net';
+import { EventEmitter } from 'events';
 import { EnvelopeAddress } from './EmailAddress';
+
+// Data structure for the socket (an internal session store)
+interface SocketData {
+  id: number;
+  timeout?: Timer | null;
+  authenticating: boolean | string; // true or string of username during AUTH LOGIN process
+  onDataBufferEvent?: EventEmitter | null; // Event emitter for incoming message data stream
+  lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
+}
+export interface SmtpSocket extends Socket {
+  data: SocketData;
+}
 
 type SmtpPhase = 'connection' | 'auth' | 'helo' | 'sender' | 'recipient' | 'data' | 'postdata';
 export class SmtpSession {
   public id: number; // A unique identifier for the session
   public startTime: number; // The time the session started
+  public remoteAddress: string | undefined; // The remote IP address of the client
   public phase: SmtpPhase; // The current phase of the SMTP session
   public greetingType: 'HELO' | 'EHLO' | null; // The greeting type used by the client
   public isSecure: boolean; // Whether the connection is secured via TLS or STARTTLS
@@ -13,9 +28,10 @@ export class SmtpSession {
   public recipients: EnvelopeAddress[];
   public pluginData: Record<string, Record<string, any>> = {};
 
-  constructor(id: number, phase: 'connection' | 'helo' = 'connection', session: SmtpSession | null = null) {
-    this.id = id;
+  constructor(sock: SmtpSocket, phase: 'connection' | 'helo' = 'connection', session: SmtpSession | null = null) {
+    this.id = sock.data.id;
     this.startTime = session?.startTime ? session.startTime : Date.now(); // Don't reset start time if we already have one
+    this.remoteAddress = sock.remoteAddress; // Remote IP address of the client
     this.phase = phase; // Connection for new connections, helo for RSET
     this.greetingType = session?.greetingType ? session.greetingType : null;
     this.isSecure = session?.isSecure ? session.isSecure : false;
@@ -31,6 +47,7 @@ export class SmtpSession {
 export class SmtpPluginSession {
   private _id: number; // A unique identifier for the session
   private _startTime: number; // The time the session started
+  private _remoteAddress: string | undefined; // The remote IP address of the client
   private _phase: SmtpPhase; // The current phase of the SMTP session
   public _greetingType: 'HELO' | 'EHLO' | null; // The greeting type used by the client
   private _isSecure: boolean; // Whether the connection is secured via TLS or STARTTLS
@@ -44,6 +61,7 @@ export class SmtpPluginSession {
   constructor(pluginName: string, session: SmtpSession) {
     this._id = session.id;
     this._startTime = session.startTime;
+    this._remoteAddress = session.remoteAddress;
     this._phase = session.phase;
     this._greetingType = session.greetingType;
     this._isSecure = session.isSecure;
@@ -61,6 +79,10 @@ export class SmtpPluginSession {
 
   public get startTime(): number {
     return this._startTime;
+  }
+
+  public get remoteAddress(): string | undefined {
+    return this._remoteAddress;
   }
 
   public get phase(): SmtpPhase {

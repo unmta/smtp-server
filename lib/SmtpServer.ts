@@ -3,6 +3,7 @@ import fs from 'fs';
 import toml from 'toml';
 import { EventEmitter } from 'events';
 import {
+  type SmtpSocket,
   SmtpSession,
   EnvelopeAddress,
   smtpPluginManager,
@@ -21,18 +22,6 @@ const unfig = toml.parse(fs.readFileSync('unfig.toml', 'utf-8'));
 // A Map to keep track of sessions keyed by socket
 let sessionCounter = 1;
 const sessions = new Map<number, SmtpSession>();
-
-// Data structure for the socket (and internal session store)
-interface SocketData {
-  id: number;
-  timeout?: Timer | null;
-  authenticating: boolean | string; // true or string of username during AUTH LOGIN process
-  onDataBufferEvent?: EventEmitter | null; // Event emitter for incoming message data stream
-  lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
-}
-interface SmtpSocket extends Socket {
-  data: SocketData;
-}
 
 interface SocketError extends Error {
   errno?: number | undefined;
@@ -169,7 +158,7 @@ export class SmtpServer {
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
     sock.data = { id: id, timeout: null, authenticating: false, onDataBufferEvent: null, lastDataChunks: [] };
-    const session = new SmtpSession(sock.data.id, phase, currentSession);
+    const session = new SmtpSession(sock, phase, currentSession);
     sessions.set(sock.data.id, session);
     this.resetTimeout(sock); // Set the idle timeout
     return session;
@@ -463,8 +452,7 @@ export class SmtpServer {
       const session = sessions.get(sock.data.id);
       if (session) {
         await this.plugins?.executeCloseHooks(session);
-        //TODO add remoteAddress to session and reinstate variable below:
-        logger.debug(`Client [[remoteAddress]] disconnected. ${Date.now() - session.startTime}ms`); // TODO add more info about client (ip, etc.)
+        logger.debug(`Client ${session.remoteAddress} disconnected. ${Date.now() - session.startTime}ms`); // TODO add more info about client (ip, etc.)
       }
       sessions.delete(sock.data.id);
     }

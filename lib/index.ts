@@ -4,4 +4,4 @@ export { default as SmtpCommand } from './SmtpCommand';
 export { default as SmtpContext } from './SmtpContext';
 export * from './SmtpPlugin';
 export * from './SmtpResponse';
-export { SmtpSession, SmtpPluginSession } from './SmtpSession';
+export { type SmtpSocket, SmtpSession, SmtpPluginSession } from './SmtpSession';
