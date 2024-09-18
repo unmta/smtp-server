@@ -1,8 +1,8 @@
 import { createServer, Server } from 'net';
 import { TLSSocket, createSecureContext, type SecureContext } from 'tls';
+import { PassThrough } from 'stream';
 import fs from 'fs';
 import toml from 'toml';
-import { EventEmitter } from 'events';
 import {
   type SmtpSocket,
   type SmtpTlsSocket,
@@ -178,7 +178,7 @@ export class SmtpServer {
     logger.debug(`${newConnection ? 'Setting' : 'Resetting'} session ${id} to ${phase} phase`);
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
-    sock.data = { id: id, timeout: null, authenticating: false, onDataBufferEvent: null, lastDataChunks: [] };
+    sock.data = { id: id, timeout: null, authenticating: false, lastDataChunks: [] };
     const session = new SmtpSession(sock, phase, currentSession);
     sessions.set(sock.data.id, session);
     this.resetTimeout(sock); // Set the idle timeout
@@ -422,8 +422,7 @@ export class SmtpServer {
 
     session.phase = 'data';
     session.isDataMode = true; // Enter DATA mode
-    sock.data.onDataBufferEvent = new EventEmitter();
-    this.plugins?.registerDataHooks(sock.data.onDataBufferEvent);
+    session.dataStream = new PassThrough();
 
     const pluginResponse = await this.plugins?.executeDataStartHooks(session);
     this.respond(sock, pluginResponse || SmtpResponse.DataStart.accept());
@@ -431,7 +430,8 @@ export class SmtpServer {
 
   // Handle incoming data stream
   private async handleData(sock: SmtpSocket | SmtpTlsSocket, session: SmtpSession, data: Buffer) {
-    sock.data.onDataBufferEvent?.emit('data', session, data);
+    session.dataStream?.write(data);
+
     // Check if the data ends with single dot '\r\n.\r\n'.
     // We do this by keeping track of the last 5 characters of the last 5 chunks of data
     // This enables telnet-style connections to send a \r, \n, ., \r, \n
@@ -444,9 +444,8 @@ export class SmtpServer {
 
   // Handle the end of the data stream
   private async handleDataEnd(sock: SmtpSocket | SmtpTlsSocket, session: SmtpSession) {
-    sock.data.onDataBufferEvent?.emit('end', session);
-    sock.data.onDataBufferEvent?.removeAllListeners();
-    sock.data.onDataBufferEvent = null;
+    session.dataStream?.end(); // End the data stream
+    session.dataStream = null;
     session.isDataMode = false; // Exit DATA mode
     session.phase = 'postdata';
     const pluginResponse = await this.plugins?.executeDataEndHooks(session);

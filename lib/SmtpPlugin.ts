@@ -1,4 +1,4 @@
-import { EventEmitter } from 'events';
+import { PassThrough } from 'stream';
 import { SmtpCommand, SmtpSession, SmtpPluginSession, EnvelopeAddress } from '.';
 import type {
   ConnectAccept,
@@ -71,8 +71,6 @@ export interface SmtpPlugin {
   onDataStart?: (
     session: SmtpPluginSession
   ) => Promise<void | DataStartAccept | DataStartDefer | DataStartReject> | void | DataStartAccept | DataStartDefer | DataStartReject;
-  onDataBuffer?: (session: SmtpPluginSession, data: Buffer) => void;
-  onDataBufferEnd?: (session: SmtpPluginSession) => void;
   onDataEnd?: (
     session: SmtpPluginSession
   ) => Promise<void | DataEndAccept | DataEndDefer | DataEndReject> | void | DataEndAccept | DataEndDefer | DataEndReject;
@@ -157,22 +155,6 @@ class SmtpPluginManager {
     for (const plugin of this.plugins) {
       if (plugin.onDataStart) {
         return await plugin.onDataStart(new SmtpPluginSession(plugin.pluginName, session));
-      }
-    }
-  }
-
-  // Execute hooks for message data events
-  registerDataHooks(event: EventEmitter): void {
-    for (const plugin of this.plugins) {
-      if (plugin.onDataBuffer) {
-        event.on('data', (session: SmtpSession, data: Buffer) => {
-          plugin.onDataBuffer?.(new SmtpPluginSession(plugin.pluginName, session), data);
-        });
-      }
-      if (plugin.onDataBufferEnd) {
-        event.on('end', (session: SmtpSession) => {
-          plugin.onDataBufferEnd?.(new SmtpPluginSession(plugin.pluginName, session));
-        });
       }
     }
   }

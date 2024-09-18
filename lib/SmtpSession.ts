@@ -1,6 +1,6 @@
 import { Socket } from 'net';
 import { TLSSocket } from 'tls';
-import { EventEmitter } from 'events';
+import { PassThrough } from 'stream';
 import { EnvelopeAddress } from './EmailAddress';
 
 // Data structure for the socket (an internal session store)
@@ -8,7 +8,6 @@ interface SocketData {
   id: number;
   timeout?: Timer | null;
   authenticating: boolean | string; // true or string of username during AUTH LOGIN process
-  onDataBufferEvent?: EventEmitter | null; // Event emitter for incoming message data stream
   lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
 }
 export interface SmtpSocket extends Socket {
@@ -28,6 +27,7 @@ export class SmtpSession {
   public isSecure: boolean; // Whether the connection is secured via TLS or STARTTLS
   public isAuthenticated: boolean; // Whether the client has authenticated successfully
   public isDataMode: boolean;
+  public dataStream: PassThrough | null; // Incoming message data stream
   public sender: EnvelopeAddress | null;
   public recipients: EnvelopeAddress[];
   public pluginData: Record<string, Record<string, any>> = {};
@@ -41,6 +41,7 @@ export class SmtpSession {
     this.isSecure = session?.isSecure ? session.isSecure : false;
     this.isAuthenticated = session?.isAuthenticated ? session.isAuthenticated : false; // Once authenticated, a client cannot complete another AUTH command in the same session (https://datatracker.ietf.org/doc/html/rfc4954#section-4)
     this.isDataMode = false;
+    this.dataStream = null;
     this.sender = null;
     this.recipients = [];
   }
@@ -57,6 +58,7 @@ export class SmtpPluginSession {
   private _isSecure: boolean; // Whether the connection is secured via TLS or STARTTLS
   private _isAuthenticated: boolean; // Whether the client has authenticated successfully
   private _isDataMode: boolean;
+  private _dataStream: PassThrough | null; // Incoming message data stream
   private _sender: EnvelopeAddress | null = null;
   private _recipients: EnvelopeAddress[] = [];
   private _pluginName: string;
@@ -71,6 +73,7 @@ export class SmtpPluginSession {
     this._isSecure = session.isSecure;
     this._isAuthenticated = session.isAuthenticated;
     this._isDataMode = session.isDataMode;
+    this._dataStream = session.dataStream;
     this._sender = session.sender;
     this._recipients = session.recipients;
     this._pluginName = pluginName;
@@ -107,6 +110,10 @@ export class SmtpPluginSession {
 
   public get isDataMode(): boolean {
     return this._isDataMode;
+  }
+
+  public get dataStream(): PassThrough | null {
+    return this._dataStream;
   }
 
   public get sender(): EnvelopeAddress | null {
