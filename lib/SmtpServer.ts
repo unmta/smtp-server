@@ -10,6 +10,7 @@ import {
   EnvelopeAddress,
   smtpPluginManager,
   SmtpCommand,
+  pipelineCommands,
   SmtpResponse,
   SmtpResponseAny,
   ConnectAccept,
@@ -83,81 +84,42 @@ export class SmtpServer {
       return;
     }
 
-    const command = new SmtpCommand(data);
-    logger.smtp(`> ${command.raw}`);
-
     if (!session) {
       logger.warn(`Session ${sock.data.id} not found for socket`); // TODO add more info about session
       this.respond(sock, SmtpResponse.Connect.defer(), true);
       return;
     }
 
+    // Get command(s), check for pipelining
+    const commands = data
+      .toString()
+      .trim()
+      .split(/\r\n/)
+      .map((line) => new SmtpCommand(line));
+    // If PIPELINING
+    if (commands.length > 1) {
+      for (const command of commands) {
+        if (sock.writableEnded) return; // Stop processing if the socket has ended (ex: 421 issued while there are still commands to process)
+        logger.smtp(`> ${command.raw}`);
+        if (command.name && !pipelineCommands.includes(command.name)) {
+          this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands')); // Only pipeline pipeline-able commands
+        } else {
+          await this.routeCommand(command, sock, session);
+        }
+      }
+      return;
+    }
+    // No PIPELINING, handle single command
+    const command = commands[0];
+    logger.smtp(`> ${command.raw}`);
+
     // If sock.data.auth is true or a string, we're in the AUTH LOGIN process
     if (sock.data.authenticating !== false) {
-      this.handleAuthLogin(command, sock, session);
+      await this.handleAuthLogin(command, sock, session);
       return;
     }
 
-    // Handle HELO/EHLO command
-    if (command.name === 'HELO' || command.name === 'EHLO') {
-      this.handleHeloCommand(command, sock, session); // TODO probably need to set ehlo as the phase if that's what's provided
-      return;
-    }
-    // Handle STARTTLS command
-    if (command.name === 'STARTTLS') {
-      this.handleStartTlsCommand(command, sock, session);
-      return;
-    }
-    // Handle AUTH command
-    if (command.name === 'AUTH') {
-      this.handleAuthCommand(command, sock, session);
-      return;
-    }
-    // Handle MAIL FROM command
-    if (command.name === 'MAIL FROM:') {
-      this.handleMailFromCommand(command, sock, session);
-      return;
-    }
-    // Handle RCPT TO command
-    if (command.name === 'RCPT TO:') {
-      this.handleRcptToCommand(command, sock, session);
-      return;
-    }
-    // Handle DATA command
-    if (command.name === 'DATA') {
-      this.handleDataCommand(sock, session);
-      return;
-    }
-    // Handle QUIT command
-    if (command.name === 'QUIT') {
-      this.handleQuitCommand(sock, session);
-      return;
-    }
-    // Handle RSET command
-    if (command.name === 'RSET') {
-      this.handleRsetCommand(sock, session);
-      return;
-    }
-    // Handle HELP command
-    if (command.name === 'HELP') {
-      this.handleHelpCommand(sock, session);
-      return;
-    }
-    // Handle NOOP command
-    if (command.name === 'NOOP') {
-      this.handleNoopCommand(sock, session);
-      return;
-    }
-    // Handle VRFY command
-    if (command.name === 'VRFY') {
-      this.handleVrfyCommand(command, sock, session);
-      return;
-    }
-    // Handle unknown commands
-    if (!command.name) {
-      this.handleUnknownCommand(command, sock, session);
-      return;
-    }
+    await this.routeCommand(command, sock, session);
   }
 
   private async socketOnEnd(sock: SmtpSocket | SmtpTlsSocket) {
@@ -185,6 +147,69 @@ export class SmtpServer {
     return session;
   }
 
+  private async routeCommand(command: SmtpCommand, sock: SmtpSocket | SmtpTlsSocket, session: SmtpSession) {
+    // Handle HELO/EHLO command
+    if (command.name === 'HELO' || command.name === 'EHLO') {
+      await this.handleHeloCommand(command, sock, session); // TODO probably need to set ehlo as the phase if that's what's provided
+      return;
+    }
+    // Handle STARTTLS command
+    if (command.name === 'STARTTLS') {
+      await this.handleStartTlsCommand(command, sock, session);
+      return;
+    }
+    // Handle AUTH command
+    if (command.name === 'AUTH') {
+      await this.handleAuthCommand(command, sock, session);
+      return;
+    }
+    // Handle MAIL FROM command
+    if (command.name === 'MAIL FROM:') {
+      await this.handleMailFromCommand(command, sock, session);
+      return;
+    }
+    // Handle RCPT TO command
+    if (command.name === 'RCPT TO:') {
+      await this.handleRcptToCommand(command, sock, session);
+      return;
+    }
+    // Handle DATA command
+    if (command.name === 'DATA') {
+      await this.handleDataCommand(sock, session);
+      return;
+    }
+    // Handle QUIT command
+    if (command.name === 'QUIT') {
+      await this.handleQuitCommand(sock, session);
+      return;
+    }
+    // Handle RSET command
+    if (command.name === 'RSET') {
+      await this.handleRsetCommand(sock, session);
+      return;
+    }
+    // Handle HELP command
+    if (command.name === 'HELP') {
+      await this.handleHelpCommand(sock, session);
+      return;
+    }
+    // Handle NOOP command
+    if (command.name === 'NOOP') {
+      await this.handleNoopCommand(sock, session);
+      return;
+    }
+    // Handle VRFY command
+    if (command.name === 'VRFY') {
+      await this.handleVrfyCommand(command, sock, session);
+      return;
+    }
+    // Handle unknown commands
+    if (!command.name) {
+      await this.handleUnknownCommand(command, sock, session);
+      return;
+    }
+  }
+
   private async handleHeloCommand(command: SmtpCommand, sock: SmtpSocket | SmtpTlsSocket, session: SmtpSession) {
     if (!command.argument) {
       this.respond(sock, new SmtpResponseAny(501, '5.5.4 Syntax error in parameters or arguments'));
@@ -205,7 +230,7 @@ export class SmtpServer {
         this.respond(sock, pluginResponse);
       } else {
         // Send extended response
-        const ehloLines: string[] = [];
+        const ehloLines: string[] = ['PIPELINING', 'ENHANCEDSTATUSCODES'];
         if (unfig.auth.enable && (!unfig.auth.requireTLS || session.isSecure)) ehloLines.push('AUTH LOGIN PLAIN');
         if (unfig.tls.enableStartTLS && !session.isSecure) ehloLines.push('STARTTLS');
         ehloLines.push('SIZE 0'); // TODO: Add SIZE support
@@ -334,7 +359,7 @@ export class SmtpServer {
   }
 
   // Handle the multi-step AUTH LOGIN commands
-  private handleAuthLogin(command: SmtpCommand, sock: SmtpSocket | SmtpTlsSocket, session: SmtpSession) {
+  private async handleAuthLogin(command: SmtpCommand, sock: SmtpSocket | SmtpTlsSocket, session: SmtpSession) {
     // If no command data found
     if (!command.raw) {
       sock.data.authenticating = false;
@@ -353,7 +378,7 @@ export class SmtpServer {
     // We're in the password phase
     const username = sock.data.authenticating as string;
     const password = data;
-    this.runAuthPlugins(command, sock, session, username, password);
+    await this.runAuthPlugins(command, sock, session, username, password);
   }
 
   private async runAuthPlugins(command: SmtpCommand, sock: SmtpSocket | SmtpTlsSocket, session: SmtpSession, username: string, password: string) {
