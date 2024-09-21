@@ -10,6 +10,7 @@ import {
   EnvelopeAddress,
   smtpPluginManager,
   SmtpCommand,
+  supportedCommands,
   pipelineCommands,
   SmtpResponse,
   SmtpResponseAny,
@@ -101,10 +102,11 @@ export class SmtpServer {
       for (const command of commands) {
         if (sock.writableEnded) return; // Stop processing if the socket has ended (ex: 421 issued while there are still commands to process)
         logger.smtp(`> ${command.raw}`);
-        if (command.name && !pipelineCommands.includes(command.name)) {
-          this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands')); // Only pipeline pipeline-able commands
-        } else {
+        // Route command if unknown (empty or !supportedCommand), or if valid pipeline command
+        if (!command.name || pipelineCommands.includes(command.name) || !supportedCommands.includes(command.name)) {
           await this.routeCommand(command, sock, session);
+        } else {
+          this.respond(sock, new SmtpResponseAny(503, '5.5.1 Bad sequence of commands')); // Only pipeline pipeline-able commands
         }
       }
       return;

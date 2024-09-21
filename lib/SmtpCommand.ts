@@ -1,5 +1,5 @@
 // All the commands we'll accept
-const commands = ['HELO', 'EHLO', 'STARTTLS', 'AUTH', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'RSET', 'HELP', 'NOOP', 'VRFY'];
+export const supportedCommands = ['HELO', 'EHLO', 'STARTTLS', 'AUTH', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'RSET', 'HELP', 'NOOP', 'VRFY'];
 
 // Pipeline-able commands
 export const pipelineCommands = ['EHLO', 'MAIL FROM:', 'RCPT TO:', 'DATA', 'QUIT', 'RSET', 'HELP', 'NOOP', 'VRFY'];
@@ -12,7 +12,7 @@ export class SmtpCommand {
 
   constructor(data: string) {
     this.raw = data;
-    this.name = commands.find((command) => this.raw.toUpperCase().startsWith(command));
+    this.name = supportedCommands.find((command) => this.raw.toUpperCase().startsWith(command));
     if (this.name) {
       this.argument = this.raw.slice(this.name.length).trim(); // Extract the argument
     }
