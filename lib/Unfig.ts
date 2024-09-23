@@ -26,10 +26,10 @@ type LogUnfig = {
 };
 
 class Unfig {
-  smtp: SmtpUnfig;
-  auth: AuthUnfig;
-  tls: TlsUnfig;
-  log: LogUnfig;
+  public readonly smtp: Readonly<SmtpUnfig>;
+  public readonly auth: Readonly<AuthUnfig>;
+  public readonly tls: Readonly<TlsUnfig>;
+  public readonly log: Readonly<LogUnfig>;
 
   constructor() {
     this.smtp = {
