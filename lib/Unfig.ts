@@ -10,6 +10,7 @@ type SmtpUnfig = {
   port: number;
   listen: string;
   hostname: string | undefined;
+  inactivityTimeout: number;
 };
 type AuthUnfig = {
   enable: boolean;
@@ -35,6 +36,7 @@ class Unfig {
       port: unfigToml.smtp.port || 2525,
       listen: unfigToml.smtp.listen || 'localhost',
       hostname: unfigToml.smtp.hostname,
+      inactivityTimeout: unfigToml.smtp.inactivityTimeout || 300,
     };
     this.auth = {
       enable: unfigToml.auth.enable || false,

@@ -521,7 +521,7 @@ export class SmtpServer {
     sock.data.timeout = setTimeout(() => {
       logger.debug(`Session ${sock.data.id} timed out due to inactivity.`); // TODO add more info about client (ip, etc.)
       this.respond(sock, new SmtpResponseAny(421, '4.4.2 Connection timed out due to inactivity'), true);
-    }, 15000);
+    }, unfig.smtp.inactivityTimeout * 1000);
   }
 
   private respond(sock: SmtpSocket | SmtpTlsSocket, response: SmtpResponseAny, end = false) {
