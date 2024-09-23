@@ -20,9 +20,9 @@ import {
   logger,
 } from './';
 
-// A Map to keep track of sessions keyed by socket
-let sessionCounter = 1;
-const sessions = new Map<number, SmtpSession>();
+let activeConnections = 0; // Current active connections
+let sessionCounter = 1; // Counter for session IDs
+const sessions = new Map<number, SmtpSession>(); // A Map to keep track of sessions keyed by socket
 
 interface SocketError extends Error {
   errno?: number | undefined;
@@ -46,6 +46,7 @@ export class SmtpServer {
     await this.plugins?.executeServerStartHooks();
 
     this.server.on('connection', async (sock: SmtpSocket | SmtpTlsSocket) => {
+      activeConnections++;
       const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
 
       logger.debug(`Client connected from ${sock.remoteAddress}`);
@@ -57,10 +58,12 @@ export class SmtpServer {
       });
 
       sock.on('end', async () => {
+        activeConnections--;
         await smtp.socketOnEnd(sock);
       });
 
       sock.on('error', async (err: SocketError) => {
+        activeConnections--;
         await smtp.socketOnError(sock, err);
       });
     });
@@ -138,7 +141,7 @@ export class SmtpServer {
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
     sock.data = { id: id, timeout: null, authenticating: false, lastDataChunks: [] };
-    const session = new SmtpSession(sock, phase, currentSession);
+    const session = new SmtpSession(sock, activeConnections, phase, currentSession);
     sessions.set(sock.data.id, session);
     this.resetTimeout(sock); // Set the idle timeout
     return session;

@@ -20,6 +20,7 @@ export interface SmtpTlsSocket extends TLSSocket {
 type SmtpPhase = 'connection' | 'auth' | 'helo' | 'sender' | 'recipient' | 'data' | 'postdata';
 export class SmtpSession {
   public id: number; // A unique identifier for the session
+  public activeConnections: number; // Total number of active connections
   public startTime: number; // The time the session started
   public remoteAddress: string | undefined; // The remote IP address of the client
   public phase: SmtpPhase; // The current phase of the SMTP session
@@ -32,8 +33,9 @@ export class SmtpSession {
   public recipients: EnvelopeAddress[];
   public pluginData: Record<string, Record<string, any>> = {};
 
-  constructor(sock: SmtpSocket | SmtpTlsSocket, phase: 'connection' | 'helo' = 'connection', session: SmtpSession | null = null) {
+  constructor(sock: SmtpSocket | SmtpTlsSocket, activeConnections: number, phase: 'connection' | 'helo' = 'connection', session: SmtpSession | null = null) {
     this.id = sock.data.id;
+    this.activeConnections = activeConnections;
     this.startTime = session?.startTime ? session.startTime : Date.now(); // Don't reset start time if we already have one
     this.remoteAddress = sock.remoteAddress; // Remote IP address of the client
     this.phase = phase; // Connection for new connections, helo for RSET
@@ -51,6 +53,7 @@ export class SmtpSession {
 // Plugins can store session data in their own namespace
 export class SmtpPluginSession {
   private _id: number; // A unique identifier for the session
+  private _activeConnections: number; // Total number of active connections
   private _startTime: number; // The time the session started
   private _remoteAddress: string | undefined; // The remote IP address of the client
   private _phase: SmtpPhase; // The current phase of the SMTP session
@@ -66,6 +69,7 @@ export class SmtpPluginSession {
 
   constructor(pluginName: string, session: SmtpSession) {
     this._id = session.id;
+    this._activeConnections = session.activeConnections;
     this._startTime = session.startTime;
     this._remoteAddress = session.remoteAddress;
     this._phase = session.phase;
@@ -82,6 +86,10 @@ export class SmtpPluginSession {
 
   public get id(): number {
     return this._id;
+  }
+
+  public get activeConnections(): number {
+    return this._activeConnections;
   }
 
   public get startTime(): number {
