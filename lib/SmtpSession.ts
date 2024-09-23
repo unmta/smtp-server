@@ -6,7 +6,7 @@ import { EnvelopeAddress } from './EmailAddress';
 // Data structure for the socket (an internal session store)
 interface SocketData {
   id: number;
-  timeout?: Timer | null;
+  timeout?: NodeJS.Timeout | null;
   authenticating: boolean | string; // true or string of username during AUTH LOGIN process
   lastDataChunks: string[]; // The last 5 chunks of data received from DATA phase. Used to detect end of data.
 }

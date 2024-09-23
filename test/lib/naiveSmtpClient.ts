@@ -1,5 +1,7 @@
+import { Socket, createConnection } from 'net';
+
 export class naiveSmtpClient {
-  private socket: any;
+  private socket: Socket | null = null;
   private port: number;
   private host: string;
   private buffer: string = '';
@@ -12,23 +14,12 @@ export class naiveSmtpClient {
   }
 
   public async connect() {
-    await Bun.connect({
-      hostname: this.host,
-      port: this.port,
-      socket: {
-        data: (socket, data) => this.onData(socket, data),
-        open: (socket) => this.onOpen(socket),
-        close: (socket) => this.onClose(socket),
-        drain: (socket) => this.onDrain(socket),
-        error: (socket, error) => this.onError(socket, error),
-        connectError: (socket, error) => this.onConnectError(socket, error),
-        end: (socket) => this.onEnd(socket),
-        timeout: (socket) => this.onTimeout(socket),
-      },
-    });
+    this.socket = createConnection({ host: this.host, port: this.port }, () => {});
+    this.socket?.on('connect', () => console.log('Connected to server'));
+    this.socket?.on('data', (data: any) => this.onData(data));
   }
 
-  private async onData(socket: any, data: any) {
+  private async onData(data: any) {
     this.buffer += data.toString();
     if (this.dataResolve) {
       this.dataResolve(this.buffer);
@@ -36,35 +27,6 @@ export class naiveSmtpClient {
       this.dataPromise = null;
       this.dataResolve = null;
     }
-  }
-
-  private async onOpen(socket: any) {
-    this.socket = socket;
-    console.log('Socket opened');
-  }
-
-  private async onClose(socket: any) {
-    console.log('Socket closed');
-  }
-
-  private async onDrain(socket: any) {
-    console.log('Socket ready for more data');
-  }
-
-  private async onError(socket: any, error: any) {
-    console.error('Socket error:', error);
-  }
-
-  private onConnectError(socket: any, error: any) {
-    console.error('Connection error:', error);
-  }
-
-  private onEnd(socket: any) {
-    console.log('Connection ended by server');
-  }
-
-  private onTimeout(socket: any) {
-    console.log('Connection timed out');
   }
 
   public async receive(): Promise<string> {
@@ -85,7 +47,7 @@ export class naiveSmtpClient {
 
   public async send(data: string, newline = '\r\n') {
     if (this.socket) {
-      await this.socket.write(data + newline);
+      this.socket.write(data + newline);
     } else {
       console.error('Socket is not open');
     }

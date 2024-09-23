@@ -3,6 +3,7 @@ port=2525
 listen="localhost" # Use 0.0.0.0 to listen on all interfaces
 #hostname="your.mail.server" # Optional, defaults to the hostname of the machine
 inactivityTimeout=15 # Seconds to wait before closing an idle connection
+gracefulStopTimeout=300 # Seconds to wait before forcing the server to shut down after a stop() is issued
 
 [auth]
 enable=true

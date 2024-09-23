@@ -23,6 +23,7 @@ import {
 let activeConnections = 0; // Current active connections
 let sessionCounter = 1; // Counter for session IDs
 const sessions = new Map<number, SmtpSession>(); // A Map to keep track of sessions keyed by socket
+let serverStopping = false; // Flag to ignore multiple stop calls
 
 interface SocketError extends Error {
   errno?: number | undefined;
@@ -70,6 +71,17 @@ export class SmtpServer {
 
     this.server.listen(unfig.smtp.port, () => {
       logger.info(`UnMTA SMTP server is running on ${unfig.smtp.listen}:${unfig.smtp.port}`);
+    });
+
+    // Intercept Ctrl + C (SIGINT) and gracefully shut down the server
+    process.on('SIGINT', () => {
+      this.stop();
+
+      // If there are still open connections, forcefully exit after gracefulStopTimeout limit
+      setTimeout(() => {
+        logger.warn(`Forcing shutdown after ${unfig.smtp.gracefulStopTimeout} seconds`);
+        process.exit(1); // Exit with non-zero code to indicate forced shutdown
+      }, unfig.smtp.gracefulStopTimeout * 1000);
     });
   }
 
@@ -230,7 +242,7 @@ export class SmtpServer {
         this.respond(sock, pluginResponse);
       } else {
         // Send extended response
-        const ehloLines: string[] = ['PIPELINING', 'ENHANCEDSTATUSCODES'];
+        const ehloLines: string[] = ['SMTPUTF8', 'PIPELINING', 'ENHANCEDSTATUSCODES', 'NO-SOLICITING'];
         if (unfig.auth.enable && (!unfig.auth.requireTLS || session.isSecure)) ehloLines.push('AUTH LOGIN PLAIN');
         if (unfig.tls.enableStartTLS && !session.isSecure) ehloLines.push('STARTTLS');
         ehloLines.push('SIZE 0'); // TODO: Add SIZE support
@@ -564,5 +576,21 @@ export class SmtpServer {
     if (sock.data?.timeout) {
       clearTimeout(sock.data.timeout);
     }
+  }
+
+  public async stop() {
+    if (serverStopping) return;
+
+    logger.info('Stopping UnMTA SMTP server...');
+    serverStopping = true;
+
+    // Close the server to stop accepting new connections
+    this.server.close((err) => {
+      if (err) {
+        logger.error('Error closing the server:', err);
+      } else {
+        logger.info('UnMTA SMTP server stopped.');
+      }
+    });
   }
 }

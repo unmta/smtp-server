@@ -11,6 +11,7 @@ type SmtpUnfig = {
   listen: string;
   hostname: string | undefined;
   inactivityTimeout: number;
+  gracefulStopTimeout: number;
 };
 type AuthUnfig = {
   enable: boolean;
@@ -37,6 +38,7 @@ class Unfig {
       listen: unfigToml.smtp.listen || 'localhost',
       hostname: unfigToml.smtp.hostname,
       inactivityTimeout: unfigToml.smtp.inactivityTimeout || 300,
+      gracefulStopTimeout: unfigToml.smtp.gracefulStopTimeout || 300,
     };
     this.auth = {
       enable: unfigToml.auth.enable || false,

@@ -1,15 +1,20 @@
 // Tests basic SMTP commands and responses
-
-import { describe, it, expect, beforeAll } from 'bun:test';
+import { SmtpServer } from '../../lib/SmtpServer';
 import { naiveSmtpClient } from '../lib/naiveSmtpClient';
 
+const server = new SmtpServer();
 const smtpClient = new naiveSmtpClient('localhost', 2525);
 
 beforeAll(async () => {
+  await server.start();
   await smtpClient.connect();
 });
 
-describe('SMTP Server', async () => {
+afterAll(async () => {
+  await server.stop();
+});
+
+describe('SMTP Server', () => {
   it('should respond with a greeting message', async () => {
     const response = await smtpClient.receive(); // Expect greeting upon connecting
     expect(response).toContain('220 ');

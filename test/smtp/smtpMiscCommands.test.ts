@@ -1,20 +1,22 @@
 // Tests the "off brand" SMTP commands and responses
-
-import { describe, it, expect, beforeAll, afterAll } from 'bun:test';
+import { SmtpServer } from '../../lib/SmtpServer';
 import { naiveSmtpClient } from '../lib/naiveSmtpClient';
 
+const server = new SmtpServer();
 const smtpClient = new naiveSmtpClient('localhost', 2525);
 
 beforeAll(async () => {
+  await server.start();
   await smtpClient.connect();
 });
 
 afterAll(async () => {
   await smtpClient.send('QUIT');
   await smtpClient.receive();
+  await server.stop();
 });
 
-describe('SMTP Server', async () => {
+describe('SMTP Server', () => {
   it('should respond to NOOP command', async () => {
     await smtpClient.receive();
     await smtpClient.send('NOOP');
