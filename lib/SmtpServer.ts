@@ -1,8 +1,6 @@
 import { createServer, Server } from 'net';
 import { TLSSocket, createSecureContext, type SecureContext } from 'tls';
 import { PassThrough } from 'stream';
-import fs from 'fs';
-import toml from 'toml';
 import {
   type SmtpSocket,
   type SmtpTlsSocket,
@@ -18,12 +16,9 @@ import {
   HeloAccept,
   AuthAccept,
   RsetAccept,
+  unfig,
+  logger,
 } from './';
-import logger from './Logger';
-
-const unfig = toml.parse(fs.readFileSync('unfig.toml', 'utf-8'));
-const tlsCert = unfig.tls.cert ? fs.readFileSync(unfig.tls.cert) : null;
-const tlsKey = unfig.tls.key ? fs.readFileSync(unfig.tls.key) : null;
 
 // A Map to keep track of sessions keyed by socket
 let sessionCounter = 1;
@@ -263,7 +258,7 @@ export class SmtpServer {
       this.respond(sock, new SmtpResponseAny(554, '5.5.1 TLS already active'));
       return;
     }
-    if (!tlsCert || !tlsKey) {
+    if (!unfig.tls.key || !unfig.tls.cert) {
       this.respond(sock, new SmtpResponseAny(454, '4.7.0 TLS not available due to temporary problem'));
       return;
     }
@@ -271,7 +266,7 @@ export class SmtpServer {
     let secureContext: SecureContext;
     let tlsSocket: SmtpTlsSocket;
     try {
-      secureContext = createSecureContext({ key: tlsKey, cert: tlsCert });
+      secureContext = createSecureContext({ key: unfig.tls.key, cert: unfig.tls.cert });
       tlsSocket = new TLSSocket(sock, { secureContext, isServer: true }) as SmtpTlsSocket;
     } catch (err) {
       logger.error(`Error creating TLS socket: ${err}`); // If you're seeing this, you probably have an invalid certificate or key

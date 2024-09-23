@@ -12,6 +12,7 @@ enableStartTLS=true
 key="tls_key.pem"
 cert="tls_cert.pem"
 
-#[logger] 
+[log] 
+level = "info" # error, warn, info, debug, smtp
 
 #[plugins]
