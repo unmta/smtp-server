@@ -49,7 +49,7 @@ export class SmtpServer {
       activeConnections++;
       const session = smtp.resetSession(sock, sessionCounter++); // Set the session state
 
-      logger.debug(`Client connected from ${sock.remoteAddress}`);
+      logger.debug(`Client ${sock.remoteAddress}:${sock.remotePort} connected. ${activeConnections} active connections`);
       const pluginResponse = await smtp.plugins?.executeConnectHooks(session);
       smtp.respond(sock, pluginResponse || SmtpResponse.Connect.accept(), pluginResponse && !(pluginResponse instanceof ConnectAccept) ? true : false);
 
@@ -84,7 +84,7 @@ export class SmtpServer {
     }
 
     if (!session) {
-      logger.warn(`Session ${sock.data.id} not found for socket`); // TODO add more info about session
+      logger.warn(`Session ${sock.data.id} not found for client ${sock.remoteAddress}:${sock.remotePort}`);
       this.respond(sock, SmtpResponse.Connect.defer(), true);
       return;
     }
@@ -129,7 +129,7 @@ export class SmtpServer {
   private async socketOnError(sock: SmtpSocket | SmtpTlsSocket, err: SocketError) {
     // We can safely ignore ECONNRESET errors, as they are usually caused by the client disconnecting
     if (err.code !== 'ECONNRESET') {
-      logger.error(`Client ${sock.remoteAddress} connection error: ${err}`); // TODO add more info about client (ip, etc.)
+      logger.error(`Client ${sock.remoteAddress}:${sock.remotePort} connection error: ${err}`);
     }
     await this.endSocket(sock);
   }
@@ -137,7 +137,7 @@ export class SmtpServer {
   // (Re)set the session state
   private resetSession(sock: SmtpSocket | SmtpTlsSocket, id: number, phase: 'connection' | 'helo' = 'connection', currentSession: SmtpSession | null = null) {
     const newConnection = !sock?.data?.id;
-    logger.debug(`${newConnection ? 'Setting' : 'Resetting'} session ${id} to ${phase} phase`);
+    logger.debug(`${newConnection ? 'Setting' : 'Resetting'} session ${id} to ${phase} phase for client ${sock.remoteAddress}:${sock.remotePort}`);
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
     sock.data = { id: id, timeout: null, authenticating: false, lastDataChunks: [] };
@@ -272,7 +272,7 @@ export class SmtpServer {
       secureContext = createSecureContext({ key: unfig.tls.key, cert: unfig.tls.cert });
       tlsSocket = new TLSSocket(sock, { secureContext, isServer: true }) as SmtpTlsSocket;
     } catch (err) {
-      logger.error(`Error creating TLS socket: ${err}`); // If you're seeing this, you probably have an invalid certificate or key
+      logger.error(`Error creating TLS socket for client ${sock.remoteAddress}:${sock.remotePort}: ${err}`); // If you're seeing this, you probably have an invalid certificate or key
       this.respond(sock, new SmtpResponseAny(454, '4.7.0 TLS not available due to temporary problem'));
       return;
     }
@@ -281,7 +281,9 @@ export class SmtpServer {
     sock.removeAllListeners('data');
     sock.removeAllListeners('end');
     tlsSocket.on('secure', () => {
-      logger.debug(`TLS handshake complete with ${tlsSocket.remoteAddress}`);
+      logger.debug(
+        `TLS handshake complete with ${tlsSocket.remoteAddress}:${tlsSocket.remotePort}. Cipher: ${tlsSocket.getCipher().name} ${tlsSocket.getCipher().version}`
+      );
       session.isSecure = true;
       tlsSocket.data = sock.data;
       sock = tlsSocket;
@@ -289,9 +291,11 @@ export class SmtpServer {
         await this.socketOnData(sock, data);
       });
       sock.on('end', async () => {
+        activeConnections--;
         await this.socketOnEnd(sock);
       });
       sock.on('error', async (err: SocketError) => {
+        activeConnections--;
         await this.socketOnError(sock, err);
       });
       this.resetSession(sock, sock.data.id, 'connection', session); // Reset the session state and timeout
@@ -522,7 +526,7 @@ export class SmtpServer {
 
     // Set a new timeout
     sock.data.timeout = setTimeout(() => {
-      logger.debug(`Session ${sock.data.id} timed out due to inactivity.`); // TODO add more info about client (ip, etc.)
+      logger.debug(`Client ${sock.remoteAddress}:${sock.remotePort} session ${sock.data.id} timed out due to inactivity.`);
       this.respond(sock, new SmtpResponseAny(421, '4.4.2 Connection timed out due to inactivity'), true);
     }, unfig.smtp.inactivityTimeout * 1000);
   }
@@ -553,7 +557,7 @@ export class SmtpServer {
       const session = sessions.get(sock.data.id);
       if (session) {
         await this.plugins?.executeCloseHooks(session);
-        logger.debug(`Client ${session.remoteAddress} disconnected. ${Date.now() - session.startTime}ms`); // TODO add more info about client (ip, etc.)
+        logger.debug(`Client ${sock.remoteAddress}:${sock.remotePort} disconnected. ${Date.now() - session.startTime}ms`);
       }
       sessions.delete(sock.data.id);
     }
