@@ -36,9 +36,9 @@ export class SmtpServer {
   private server: Server;
   private plugins: typeof smtpPluginManager | null;
 
-  constructor(plugins: typeof smtpPluginManager | null = null) {
+  constructor() {
     this.server = createServer();
-    this.plugins = plugins;
+    this.plugins = smtpPluginManager;
   }
 
   // Start the server

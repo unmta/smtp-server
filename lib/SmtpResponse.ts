@@ -25,6 +25,7 @@ const connectAcceptResponses = {
 const defaultConnectAcceptCode = 220;
 type ConnectAcceptCode = keyof typeof connectAcceptResponses;
 export class ConnectAccept extends SmtpResponseAny {
+  readonly type = 'ConnectAccept'; // Discriminator
   constructor(code: ConnectAcceptCode, message: string | null) {
     super(code, message || connectAcceptResponses[code]);
   }
@@ -37,6 +38,7 @@ const connectDeferResponses = {
 const defaultConnectDeferCode = 421;
 type ConnectDeferCode = keyof typeof connectDeferResponses;
 export class ConnectDefer extends SmtpResponseAny {
+  readonly type = 'ConnectDefer'; // Discriminator
   constructor(code: ConnectDeferCode, message: string | null) {
     super(code, message || connectDeferResponses[code]);
   }
@@ -50,6 +52,7 @@ const connectRejectResponses = {
 const defaultConnectRejectCode = 554;
 type ConnectRejectCode = keyof typeof connectRejectResponses;
 export class ConnectReject extends SmtpResponseAny {
+  readonly type = 'ConnectReject'; // Discriminator
   constructor(code: ConnectRejectCode, message: string | null) {
     super(code, message || connectRejectResponses[code]);
   }
@@ -76,6 +79,7 @@ const heloAcceptResponses = {
 const defaultHeloAcceptCode = 250;
 type HeloAcceptCode = keyof typeof heloAcceptResponses;
 export class HeloAccept extends SmtpResponseAny {
+  readonly type = 'HeloAccept'; // Discriminator
   constructor(code: HeloAcceptCode, message: string | null) {
     super(code, message || heloAcceptResponses[code]);
   }
@@ -90,6 +94,7 @@ const heloDeferResponses = {
 const defaultHeloDeferCode = 421;
 type HeloDeferCode = keyof typeof heloDeferResponses;
 export class HeloDefer extends SmtpResponseAny {
+  readonly type = 'HeloDefer'; // Discriminator
   constructor(code: HeloDeferCode, message: string | null) {
     super(code, message || heloDeferResponses[code]);
   }
@@ -105,6 +110,7 @@ const heloRejectResponses = {
 const defaultHeloRejectCode = 550;
 type HeloRejectCode = keyof typeof heloRejectResponses;
 export class HeloReject extends SmtpResponseAny {
+  readonly type = 'HeloReject'; // Discriminator
   constructor(code: HeloRejectCode, message: string | null) {
     super(code, message || heloRejectResponses[code]);
   }
@@ -131,6 +137,7 @@ const authAcceptResponses = {
 const defaultAuthAcceptCode = 235;
 type AuthAcceptCode = keyof typeof authAcceptResponses;
 export class AuthAccept extends SmtpResponseAny {
+  readonly type = 'AuthAccept'; // Discriminator
   constructor(code: AuthAcceptCode, message: string | null) {
     super(code, message || authAcceptResponses[code]);
   }
@@ -146,6 +153,7 @@ const authDeferResponses = {
 const defaultAuthDeferCode = 421;
 type AuthDeferCode = keyof typeof authDeferResponses;
 export class AuthDefer extends SmtpResponseAny {
+  readonly type = 'AuthDefer'; // Discriminator
   constructor(code: AuthDeferCode, message: string | null) {
     super(code, message || authDeferResponses[code]);
   }
@@ -158,6 +166,7 @@ const authRejectResponses = {
 const defaultAuthRejectCode = 535;
 type AuthRejectCode = keyof typeof authRejectResponses;
 export class AuthReject extends SmtpResponseAny {
+  readonly type = 'AuthReject'; // Discriminator
   constructor(code: AuthRejectCode, message: string | null) {
     super(code, message || authRejectResponses[code]);
   }
@@ -184,6 +193,7 @@ const mailFromAcceptResponses = {
 const defaultMailFromAcceptCode = 250;
 type MailFromAcceptCode = keyof typeof mailFromAcceptResponses;
 export class MailFromAccept extends SmtpResponseAny {
+  readonly type = 'MailFromAccept'; // Discriminator
   constructor(code: MailFromAcceptCode, message: string | null) {
     super(code, message || mailFromAcceptResponses[code]);
   }
@@ -198,6 +208,7 @@ const mailFromDeferResponses = {
 const defaultMailFromDeferCode = 421;
 type MailFromDeferCode = keyof typeof mailFromDeferResponses;
 export class MailFromDefer extends SmtpResponseAny {
+  readonly type = 'MailFromDefer'; // Discriminator
   constructor(code: MailFromDeferCode, message: string | null) {
     super(code, message || mailFromDeferResponses[code]);
   }
@@ -213,6 +224,7 @@ const mailFromRejectResponses = {
 const defaultMailFromRejectCode = 550;
 type MailFromRejectCode = keyof typeof mailFromRejectResponses;
 export class MailFromReject extends SmtpResponseAny {
+  readonly type = 'MailFromReject'; // Discriminator
   constructor(code: MailFromRejectCode, message: string | null) {
     super(code, message || mailFromRejectResponses[code]);
   }
@@ -240,6 +252,7 @@ const rcptToAcceptResponses = {
 const defaultRcptToAcceptCode = 250;
 type RcptToAcceptCode = keyof typeof rcptToAcceptResponses;
 export class RcptToAccept extends SmtpResponseAny {
+  readonly type = 'RcptToAccept'; // Discriminator
   constructor(code: RcptToAcceptCode, message: string | null) {
     super(code, message || rcptToAcceptResponses[code]);
   }
@@ -254,6 +267,7 @@ const rcptToDeferResponses = {
 const defaultRcptToDeferCode = 421;
 type RcptToDeferCode = keyof typeof rcptToDeferResponses;
 export class RcptToDefer extends SmtpResponseAny {
+  readonly type = 'RcptToDefer'; // Discriminator
   constructor(code: RcptToDeferCode, message: string | null) {
     super(code, message || rcptToDeferResponses[code]);
   }
@@ -269,6 +283,7 @@ const rcptToRejectResponses = {
 const defaultRcptToRejectCode = 550;
 type RcptToRejectCode = keyof typeof rcptToRejectResponses;
 export class RcptToReject extends SmtpResponseAny {
+  readonly type = 'RcptToReject'; // Discriminator
   constructor(code: RcptToRejectCode, message: string | null) {
     super(code, message || rcptToRejectResponses[code]);
   }
@@ -295,6 +310,7 @@ const dataStartAcceptResponses = {
 const defaultDataStartAcceptCode = 354;
 type DataStartAcceptCode = keyof typeof dataStartAcceptResponses;
 export class DataStartAccept extends SmtpResponseAny {
+  readonly type = 'DataStartAccept'; // Discriminator
   constructor(code: DataStartAcceptCode, message: string | null) {
     super(code, message || dataStartAcceptResponses[code]);
   }
@@ -308,6 +324,7 @@ const dataStartDeferResponses = {
 const defaultDataStartDeferCode = 421;
 type DataStartDeferCode = keyof typeof dataStartDeferResponses;
 export class DataStartDefer extends SmtpResponseAny {
+  readonly type = 'DataStartDefer'; // Discriminator
   constructor(code: DataStartDeferCode, message: string | null) {
     super(code, message || dataStartDeferResponses[code]);
   }
@@ -321,6 +338,7 @@ const dataStartRejectResponses = {
 const defaultDataStartRejectCode = 550;
 type DataStartRejectCode = keyof typeof dataStartRejectResponses;
 export class DataStartReject extends SmtpResponseAny {
+  readonly type = 'DataStartReject'; // Discriminator
   constructor(code: DataStartRejectCode, message: string | null) {
     super(code, message || dataStartRejectResponses[code]);
   }
@@ -347,6 +365,7 @@ const dataEndAcceptResponses = {
 const defaultDataEndAcceptCode = 250;
 type DataEndAcceptCode = 250;
 export class DataEndAccept extends SmtpResponseAny {
+  readonly type = 'DataEndAccept'; // Discriminator
   constructor(code: DataEndAcceptCode, message: string | null) {
     super(code, message || dataEndAcceptResponses[code]);
   }
@@ -360,6 +379,7 @@ const dataEndDeferResponses = {
 const defaultDataEndDeferCode = 451;
 type DataEndDeferCode = keyof typeof dataEndDeferResponses;
 export class DataEndDefer extends SmtpResponseAny {
+  readonly type = 'DataEndDefer'; // Discriminator
   constructor(code: DataEndDeferCode, message: string | null) {
     super(code, message || dataEndDeferResponses[code]);
   }
@@ -373,6 +393,7 @@ const dataEndRejectResponses = {
 const defaultDataEndRejectCode = 550;
 type DataEndRejectCode = keyof typeof dataEndRejectResponses;
 export class DataEndReject extends SmtpResponseAny {
+  readonly type = 'DataEndReject'; // Discriminator
   constructor(code: DataEndRejectCode, message: string | null) {
     super(code, message || dataEndRejectResponses[code]);
   }
@@ -399,6 +420,7 @@ const quitAcceptResponses = {
 const defaultQuitAcceptCode = 221;
 type QuitAcceptCode = keyof typeof quitAcceptResponses;
 export class QuitAccept extends SmtpResponseAny {
+  readonly type = 'QuitAccept'; // Discriminator
   constructor(code: QuitAcceptCode, message: string | null) {
     super(code, message || quitAcceptResponses[code]);
   }
@@ -410,6 +432,7 @@ const quitDeferResponses = {
 const defaultQuitDeferCode = 421;
 type QuitDeferCode = keyof typeof quitDeferResponses;
 export class QuitDefer extends SmtpResponseAny {
+  readonly type = 'QuitDefer'; // Discriminator
   constructor(code: QuitDeferCode, message: string | null) {
     super(code, message || quitDeferResponses[code]);
   }
@@ -421,6 +444,7 @@ const quitRejectResponses = {
 const defaultQuitRejectCode = 554;
 type QuitRejectCode = keyof typeof quitRejectResponses;
 export class QuitReject extends SmtpResponseAny {
+  readonly type = 'QuitReject'; // Discriminator
   constructor(code: QuitRejectCode, message: string | null) {
     super(code, message || quitRejectResponses[code]);
   }
@@ -447,6 +471,7 @@ const rsetAcceptResponses = {
 const defaultRsetAcceptCode = 250;
 type RsetAcceptCode = keyof typeof rsetAcceptResponses;
 export class RsetAccept extends SmtpResponseAny {
+  readonly type = 'RsetAccept'; // Discriminator
   constructor(code: RsetAcceptCode, message: string | null) {
     super(code, message || rsetAcceptResponses[code]);
   }
@@ -459,6 +484,7 @@ const rsetDeferResponses = {
 const defaultRsetDeferCode = 451;
 type RsetDeferCode = keyof typeof rsetDeferResponses;
 export class RsetDefer extends SmtpResponseAny {
+  readonly type = 'RsetDefer'; // Discriminator
   constructor(code: RsetDeferCode, message: string | null) {
     super(code, message || rsetDeferResponses[code]);
   }
@@ -471,6 +497,7 @@ const rsetRejectResponses = {
 const defaultRsetRejectCode = 502;
 type RsetRejectCode = keyof typeof rsetRejectResponses;
 export class RsetReject extends SmtpResponseAny {
+  readonly type = 'RsetReject'; // Discriminator
   constructor(code: RsetRejectCode, message: string | null) {
     super(code, message || rsetRejectResponses[code]);
   }
@@ -498,6 +525,7 @@ const helpAcceptResponses = {
 const defaultHelpAcceptCode = 214;
 type HelpAcceptCode = keyof typeof helpAcceptResponses;
 export class HelpAccept extends SmtpResponseAny {
+  readonly type = 'HelpAccept'; // Discriminator
   constructor(code: HelpAcceptCode, message: string | null) {
     super(code, message || helpAcceptResponses[code]);
   }
@@ -510,6 +538,7 @@ const helpDeferResponses = {
 const defaultHelpDeferCode = 451;
 type HelpDeferCode = keyof typeof helpDeferResponses;
 export class HelpDefer extends SmtpResponseAny {
+  readonly type = 'HelpDefer'; // Discriminator
   constructor(code: HelpDeferCode, message: string | null) {
     super(code, message || helpDeferResponses[code]);
   }
@@ -522,6 +551,7 @@ const helpRejectResponses = {
 const defaultHelpRejectCode = 502;
 type HelpRejectCode = keyof typeof helpRejectResponses;
 export class HelpReject extends SmtpResponseAny {
+  readonly type = 'HelpReject'; // Discriminator
   constructor(code: HelpRejectCode, message: string | null) {
     super(code, message || helpRejectResponses[code]);
   }
@@ -548,6 +578,7 @@ const noopAcceptResponses = {
 const defaultNoopAcceptCode = 250;
 type NoopAcceptCode = keyof typeof noopAcceptResponses;
 export class NoopAccept extends SmtpResponseAny {
+  readonly type = 'NoopAccept'; // Discriminator
   constructor(code: NoopAcceptCode, message: string | null) {
     super(code, message || noopAcceptResponses[code]);
   }
@@ -560,6 +591,7 @@ const noopDeferResponses = {
 const defaultNoopDeferCode = 451;
 type NoopDeferCode = keyof typeof noopDeferResponses;
 export class NoopDefer extends SmtpResponseAny {
+  readonly type = 'NoopDefer'; // Discriminator
   constructor(code: NoopDeferCode, message: string | null) {
     super(code, message || noopDeferResponses[code]);
   }
@@ -572,6 +604,7 @@ const noopRejectResponses = {
 const defaultNoopRejectCode = 502;
 type NoopRejectCode = keyof typeof noopRejectResponses;
 export class NoopReject extends SmtpResponseAny {
+  readonly type = 'NoopReject'; // Discriminator
   constructor(code: NoopRejectCode, message: string | null) {
     super(code, message || noopRejectResponses[code]);
   }
@@ -600,6 +633,7 @@ const vrfyAcceptResponses = {
 const defaultVrfyAcceptCode = 252;
 type VrfyAcceptCode = keyof typeof vrfyAcceptResponses;
 export class VrfyAccept extends SmtpResponseAny {
+  readonly type = 'VrfyAccept'; // Discriminator
   constructor(code: VrfyAcceptCode, message: string | null) {
     super(code, message || vrfyAcceptResponses[code]);
   }
@@ -613,6 +647,7 @@ const vrfyDeferResponses = {
 const defaultVrfyDeferCode = 451;
 type VrfyDeferCode = keyof typeof vrfyDeferResponses;
 export class VrfyDefer extends SmtpResponseAny {
+  readonly type = 'VrfyDefer'; // Discriminator
   constructor(code: VrfyDeferCode, message: string | null) {
     super(code, message || vrfyDeferResponses[code]);
   }
@@ -629,6 +664,7 @@ const vrfyRejectResponses = {
 const defaultVrfyRejectCode = 502;
 type VrfyRejectCode = keyof typeof vrfyRejectResponses;
 export class VrfyReject extends SmtpResponseAny {
+  readonly type = 'VrfyReject'; // Discriminator
   constructor(code: VrfyRejectCode, message: string | null) {
     super(code, message || vrfyRejectResponses[code]);
   }
@@ -655,6 +691,7 @@ const unknownAcceptResponses = {
 const defaultUnknownAcceptCode = 250;
 type UnknownAcceptCode = keyof typeof unknownAcceptResponses;
 export class UnknownAccept extends SmtpResponseAny {
+  readonly type = 'UnknownAccept'; // Discriminator
   constructor(code: UnknownAcceptCode, message: string | null) {
     super(code, message || unknownAcceptResponses[code]);
   }
@@ -668,6 +705,7 @@ const unknownDeferResponses = {
 const defaultUnknownDeferCode = 451;
 type UnknownDeferCode = keyof typeof unknownDeferResponses;
 export class UnknownDefer extends SmtpResponseAny {
+  readonly type = 'UnknownDefer'; // Discriminator
   constructor(code: UnknownDeferCode, message: string | null) {
     super(code, message || unknownDeferResponses[code]);
   }
@@ -683,6 +721,7 @@ const unknownRejectResponses = {
 const defaultUnknownRejectCode = 500;
 type UnknownRejectCode = keyof typeof unknownRejectResponses;
 export class UnknownReject extends SmtpResponseAny {
+  readonly type = 'UnknownReject'; // Discriminator
   constructor(code: UnknownRejectCode, message: string | null) {
     super(code, message || unknownRejectResponses[code]);
   }
