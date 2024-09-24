@@ -120,7 +120,8 @@ class SmtpPluginManager {
   async executeConnectHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onConnect) {
-        return await plugin.onConnect(new SmtpPluginSession(plugin.pluginName, session));
+        const res = await plugin.onConnect(new SmtpPluginSession(plugin.pluginName, session));
+        if (res) return res;
       }
     }
   }
@@ -129,7 +130,8 @@ class SmtpPluginManager {
   async executeHeloHooks(session: SmtpSession, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onHelo) {
-        return await plugin.onHelo(new SmtpPluginSession(plugin.pluginName, session), command.argument || '', command.name === 'EHLO' ? 'EHLO' : 'HELO');
+        const res = await plugin.onHelo(new SmtpPluginSession(plugin.pluginName, session), command.argument || '', command.name === 'EHLO' ? 'EHLO' : 'HELO');
+        if (res) return res;
       }
     }
   }
@@ -138,7 +140,8 @@ class SmtpPluginManager {
   async executeAuthHooks(session: SmtpSession, username: string, password: string) {
     for (const plugin of this.plugins) {
       if (plugin.onAuth) {
-        return await plugin.onAuth(new SmtpPluginSession(plugin.pluginName, session), username, password);
+        const res = await plugin.onAuth(new SmtpPluginSession(plugin.pluginName, session), username, password);
+        if (res) return res;
       }
     }
   }
@@ -147,7 +150,8 @@ class SmtpPluginManager {
   async executeMailFromHooks(session: SmtpSession, address: EnvelopeAddress, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onMailFrom) {
-        return await plugin.onMailFrom(new SmtpPluginSession(plugin.pluginName, session), address, command);
+        const res = await plugin.onMailFrom(new SmtpPluginSession(plugin.pluginName, session), address, command);
+        if (res) return res;
       }
     }
   }
@@ -156,7 +160,8 @@ class SmtpPluginManager {
   async executeRcptToHooks(session: SmtpSession, address: EnvelopeAddress, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onRcptTo) {
-        return await plugin.onRcptTo(new SmtpPluginSession(plugin.pluginName, session), address, command);
+        const res = await plugin.onRcptTo(new SmtpPluginSession(plugin.pluginName, session), address, command);
+        if (res) return res;
       }
     }
   }
@@ -165,7 +170,8 @@ class SmtpPluginManager {
   async executeDataStartHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onDataStart) {
-        return await plugin.onDataStart(new SmtpPluginSession(plugin.pluginName, session));
+        const res = await plugin.onDataStart(new SmtpPluginSession(plugin.pluginName, session));
+        if (res) return res;
       }
     }
   }
@@ -174,7 +180,8 @@ class SmtpPluginManager {
   async executeDataEndHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onDataEnd) {
-        return await plugin.onDataEnd(new SmtpPluginSession(plugin.pluginName, session));
+        const res = await plugin.onDataEnd(new SmtpPluginSession(plugin.pluginName, session));
+        if (res) return res;
       }
     }
   }
@@ -183,7 +190,8 @@ class SmtpPluginManager {
   async executeQuitHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onQuit) {
-        return await plugin.onQuit(new SmtpPluginSession(plugin.pluginName, session));
+        const res = await plugin.onQuit(new SmtpPluginSession(plugin.pluginName, session));
+        if (res) return res;
       }
     }
   }
@@ -202,7 +210,8 @@ class SmtpPluginManager {
   async executeRsetHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onRset) {
-        return await plugin.onRset(new SmtpPluginSession(plugin.pluginName, session));
+        const res = await plugin.onRset(new SmtpPluginSession(plugin.pluginName, session));
+        if (res) return res;
       }
     }
   }
@@ -211,7 +220,8 @@ class SmtpPluginManager {
   async executeHelpHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onHelp) {
-        return await plugin.onHelp(new SmtpPluginSession(plugin.pluginName, session));
+        const res = await plugin.onHelp(new SmtpPluginSession(plugin.pluginName, session));
+        if (res) return res;
       }
     }
   }
@@ -220,7 +230,8 @@ class SmtpPluginManager {
   async executeNoopHooks(session: SmtpSession) {
     for (const plugin of this.plugins) {
       if (plugin.onNoop) {
-        return await plugin.onNoop(new SmtpPluginSession(plugin.pluginName, session));
+        const res = await plugin.onNoop(new SmtpPluginSession(plugin.pluginName, session));
+        if (res) return res;
       }
     }
   }
@@ -229,7 +240,8 @@ class SmtpPluginManager {
   async executeVrfyHooks(session: SmtpSession, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onVrfy) {
-        return await plugin.onVrfy(new SmtpPluginSession(plugin.pluginName, session), command);
+        const res = await plugin.onVrfy(new SmtpPluginSession(plugin.pluginName, session), command);
+        if (res) return res;
       }
     }
   }
@@ -238,7 +250,8 @@ class SmtpPluginManager {
   async executeUnknownHooks(session: SmtpSession, command: SmtpCommand) {
     for (const plugin of this.plugins) {
       if (plugin.onUnknown) {
-        return await plugin.onUnknown(new SmtpPluginSession(plugin.pluginName, session), command);
+        const res = await plugin.onUnknown(new SmtpPluginSession(plugin.pluginName, session), command);
+        if (res) return res;
       }
     }
   }
