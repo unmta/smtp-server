@@ -1,10 +1,5 @@
-import { hostname } from 'os';
 import { version } from '../package.json';
-import fs from 'fs';
-import toml from 'toml';
-
-const unfig = toml.parse(fs.readFileSync('unfig.toml', 'utf-8'));
-const domain = unfig.smtp.hostname || hostname().toLowerCase();
+import { unfig } from './Unfig';
 
 /**
  * Base class for all SMTP responses.
@@ -25,7 +20,7 @@ export class SmtpResponseAny {
  * Connect Responses
  */
 const connectAcceptResponses = {
-  220: `${domain} ESMTP unMta v${version} ready`,
+  220: `${unfig.smtp.hostname} ESMTP unMta v${version} ready`,
 };
 const defaultConnectAcceptCode = 220;
 type ConnectAcceptCode = keyof typeof connectAcceptResponses;
@@ -36,8 +31,8 @@ export class ConnectAccept extends SmtpResponseAny {
 }
 
 const connectDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
-  450: `4.3.2 ${domain} Service temporarily unavailable, please try again later`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
+  450: `4.3.2 ${unfig.smtp.hostname} Service temporarily unavailable, please try again later`,
 };
 const defaultConnectDeferCode = 421;
 type ConnectDeferCode = keyof typeof connectDeferResponses;
@@ -48,7 +43,7 @@ export class ConnectDefer extends SmtpResponseAny {
 }
 
 const connectRejectResponses = {
-  521: `5.3.2 ${domain} does not accept mail`,
+  521: `5.3.2 ${unfig.smtp.hostname} does not accept mail`,
   550: `5.7.1 Access denied`,
   554: `5.7.1 Access denied`,
 };
@@ -76,7 +71,7 @@ class Connect {
  * Helo Responses
  */
 const heloAcceptResponses = {
-  250: `${domain} Hello, pleased to meet you`,
+  250: `${unfig.smtp.hostname} Hello, pleased to meet you`,
 };
 const defaultHeloAcceptCode = 250;
 type HeloAcceptCode = keyof typeof heloAcceptResponses;
@@ -87,10 +82,10 @@ export class HeloAccept extends SmtpResponseAny {
 }
 
 const heloDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
-  450: `4.2.0 ${domain} Temporary failure, please try again later`,
-  451: `4.3.0 ${domain} Temporary server error, please try again later`,
-  452: `4.3.1 ${domain} Insufficient system storage, please try again later`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
+  450: `4.2.0 ${unfig.smtp.hostname} Temporary failure, please try again later`,
+  451: `4.3.0 ${unfig.smtp.hostname} Temporary server error, please try again later`,
+  452: `4.3.1 ${unfig.smtp.hostname} Insufficient system storage, please try again later`,
 };
 const defaultHeloDeferCode = 421;
 type HeloDeferCode = keyof typeof heloDeferResponses;
@@ -142,7 +137,7 @@ export class AuthAccept extends SmtpResponseAny {
 }
 
 const authDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   432: '4.7.12 A password transition is needed',
   450: '4.7.0 Requested mail action not taken: mailbox unavailable',
   451: '4.3.0 Requested action aborted: local error in processing',
@@ -195,7 +190,7 @@ export class MailFromAccept extends SmtpResponseAny {
 }
 
 const mailFromDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   450: '4.7.0 Sender address temporarily rejected',
   451: '4.3.0 Temporary server error, please try again later',
   452: '4.3.1 Requested action not taken: insufficient system storage',
@@ -306,7 +301,7 @@ export class DataStartAccept extends SmtpResponseAny {
 }
 
 const dataStartDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   451: '4.3.0 Requested action aborted: local error in processing',
   452: '4.3.1 Requested action not taken: insufficient system storage',
 };
@@ -358,7 +353,7 @@ export class DataEndAccept extends SmtpResponseAny {
 }
 
 const dataEndDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   451: '4.3.0 Requested action aborted: local error in processing',
   452: '4.3.1 Requested action not taken: insufficient system storage',
 };
@@ -410,7 +405,7 @@ export class QuitAccept extends SmtpResponseAny {
 }
 
 const quitDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
 };
 const defaultQuitDeferCode = 421;
 type QuitDeferCode = keyof typeof quitDeferResponses;
@@ -458,7 +453,7 @@ export class RsetAccept extends SmtpResponseAny {
 }
 
 const rsetDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   451: '4.3.0 Requested action aborted: local error in processing',
 };
 const defaultRsetDeferCode = 451;
@@ -509,7 +504,7 @@ export class HelpAccept extends SmtpResponseAny {
 }
 
 const helpDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   451: '4.3.0 Requested action aborted: local error in processing',
 };
 const defaultHelpDeferCode = 451;
@@ -559,7 +554,7 @@ export class NoopAccept extends SmtpResponseAny {
 }
 
 const noopDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   451: '4.3.0 Requested action aborted: local error in processing',
 };
 const defaultNoopDeferCode = 451;
@@ -611,7 +606,7 @@ export class VrfyAccept extends SmtpResponseAny {
 }
 
 const vrfyDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   450: '4.7.0 Requested mail action not taken: mailbox unavailable',
   451: '4.3.0 Requested action aborted: local error in processing',
 };
@@ -666,7 +661,7 @@ export class UnknownAccept extends SmtpResponseAny {
 }
 
 const unknownDeferResponses = {
-  421: `4.3.0 ${domain} Service not available, closing transmission channel`,
+  421: `4.3.0 ${unfig.smtp.hostname} Service not available, closing transmission channel`,
   450: '4.7.0 Requested mail action not taken: mailbox unavailable',
   451: '4.3.0 Requested action aborted: local error in processing',
 };

@@ -1,5 +1,4 @@
 import { Address as rfc2821 } from 'address-rfc2821';
-// import rfc2822 from 'address-rfc2822';
 
 // Parse rfc2821 email address
 export class EnvelopeAddress {

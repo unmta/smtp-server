@@ -242,7 +242,7 @@ export class SmtpServer {
         this.respond(sock, pluginResponse);
       } else {
         // Send extended response
-        const ehloLines: string[] = ['SMTPUTF8', 'PIPELINING', 'ENHANCEDSTATUSCODES', 'NO-SOLICITING'];
+        const ehloLines: string[] = ['SMTPUTF8', '8BITMIME', 'PIPELINING', 'ENHANCEDSTATUSCODES'];
         if (unfig.auth.enable && (!unfig.auth.requireTLS || session.isSecure)) ehloLines.push('AUTH LOGIN PLAIN');
         if (unfig.tls.enableStartTLS && !session.isSecure) ehloLines.push('STARTTLS');
         ehloLines.push('SIZE 0'); // TODO: Add SIZE support
@@ -590,6 +590,7 @@ export class SmtpServer {
         logger.error('Error closing the server:', err);
       } else {
         logger.info('UnMTA SMTP server stopped.');
+        process.exit(0);
       }
     });
   }

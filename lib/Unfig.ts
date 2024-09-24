@@ -1,10 +1,11 @@
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
+import { hostname } from 'os';
 import toml from 'toml';
 import { initializeLogger, logger } from './';
 
-const unfigToml = toml.parse(readFileSync('unfig.toml', 'utf-8'));
-const tlsCert = unfigToml.tls.cert ? readFileSync(unfigToml.tls.cert) : null;
-const tlsKey = unfigToml.tls.key ? readFileSync(unfigToml.tls.key) : null;
+const unfigToml = existsSync('unfig.toml') ? toml.parse(readFileSync('unfig.toml', 'utf-8')) : {};
+const tlsCert = unfigToml.tls?.cert ? readFileSync(unfigToml.tls.cert) : null;
+const tlsKey = unfigToml.tls?.key ? readFileSync(unfigToml.tls.key) : null;
 
 type SmtpUnfig = {
   port: number;
@@ -34,23 +35,23 @@ class Unfig {
 
   constructor() {
     this.smtp = {
-      port: unfigToml.smtp.port || 2525,
-      listen: unfigToml.smtp.listen || 'localhost',
-      hostname: unfigToml.smtp.hostname,
-      inactivityTimeout: unfigToml.smtp.inactivityTimeout || 300,
-      gracefulStopTimeout: unfigToml.smtp.gracefulStopTimeout || 300,
+      port: unfigToml.smtp?.port || 2525,
+      listen: unfigToml.smtp?.listen || 'localhost',
+      hostname: unfigToml.smtp?.hostname || hostname().toLowerCase(),
+      inactivityTimeout: unfigToml.smtp?.inactivityTimeout || 300,
+      gracefulStopTimeout: unfigToml.smtp?.gracefulStopTimeout || 300,
     };
     this.auth = {
-      enable: unfigToml.auth.enable || false,
-      requireTLS: unfigToml.auth.requireTLS ?? true,
+      enable: unfigToml.auth?.enable || false,
+      requireTLS: unfigToml.auth?.requireTLS ?? true,
     };
     this.tls = {
-      enableStartTLS: unfigToml.tls.enableStartTLS || false,
+      enableStartTLS: unfigToml.tls?.enableStartTLS || false,
       key: tlsKey,
       cert: tlsCert,
     };
     this.log = {
-      level: unfigToml.log.level || 'info',
+      level: unfigToml.log?.level || 'info',
     };
   }
 }
