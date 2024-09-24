@@ -45,6 +45,7 @@ import type {
 export interface SmtpPlugin {
   pluginName: string;
   onServerStart?: () => void;
+  onServerStop?: () => void;
   onConnect?: (
     session: SmtpPluginSession
   ) => Promise<void | ConnectAccept | ConnectDefer | ConnectReject> | void | ConnectAccept | ConnectDefer | ConnectReject;
@@ -97,10 +98,20 @@ class SmtpPluginManager {
     this.plugins.push(...plugins);
   }
 
+  // Execute Server Start hooks
   async executeServerStartHooks() {
     for (const plugin of this.plugins) {
       if (plugin.onServerStart) {
         plugin.onServerStart();
+      }
+    }
+  }
+
+  // Execute Server Stop hooks
+  async executeServerStopHooks() {
+    for (const plugin of this.plugins) {
+      if (plugin.onServerStop) {
+        plugin.onServerStop();
       }
     }
   }

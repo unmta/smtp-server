@@ -1,6 +1,7 @@
 import { createServer, Server } from 'net';
 import { TLSSocket, createSecureContext, type SecureContext } from 'tls';
 import { PassThrough } from 'stream';
+import { version } from '../package.json';
 import {
   type SmtpSocket,
   type SmtpTlsSocket,
@@ -70,7 +71,7 @@ export class SmtpServer {
     });
 
     this.server.listen(unfig.smtp.port, () => {
-      logger.info(`UnMTA SMTP server is running on ${unfig.smtp.listen}:${unfig.smtp.port}`);
+      logger.info(`UnMTA SMTP server v${version} is running on ${unfig.smtp.listen}:${unfig.smtp.port}`);
     });
 
     // Intercept Ctrl + C (SIGINT) and gracefully shut down the server
@@ -585,10 +586,11 @@ export class SmtpServer {
     serverStopping = true;
 
     // Close the server to stop accepting new connections
-    this.server.close((err) => {
+    this.server.close(async (err) => {
       if (err) {
         logger.error('Error closing the server:', err);
       } else {
+        await this.plugins?.executeServerStopHooks();
         logger.info('UnMTA SMTP server stopped.');
         process.exit(0);
       }
