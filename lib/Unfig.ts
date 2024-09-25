@@ -3,7 +3,7 @@ import { hostname } from 'os';
 import toml from 'toml';
 import { initializeLogger, logger } from './';
 
-const unfigToml = existsSync('unfig.toml') ? toml.parse(readFileSync('unfig.toml', 'utf-8')) : {};
+const unfigToml = existsSync('config/unfig.toml') ? toml.parse(readFileSync('config/unfig.toml', 'utf-8')) : {};
 const tlsCert = unfigToml.tls?.cert ? readFileSync(unfigToml.tls.cert) : null;
 const tlsKey = unfigToml.tls?.key ? readFileSync(unfigToml.tls.key) : null;
 

@@ -1,15 +1,7 @@
-# unmta
+# UnMTA
 
-To install dependencies:
+Words will go here..
 
-```bash
-bun install
-```
+## License
 
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.1.26. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
+@unmta/smtp-server is released under the MIT License. See the bundled LICENSE file for details.
