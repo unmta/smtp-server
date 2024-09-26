@@ -16,6 +16,10 @@
     "dev": "tsx --watch index.ts",
     "start": "tsx index.ts"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unmta/smtp-server.git"
+  },
   "keywords": [
     "smtp",
     "smtp-server",
@@ -37,6 +41,10 @@
   ],
   "author": "Dan Stevens",
   "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/unmta/smtp-server/issues"
+  },
+  "homepage": "https://unmta.com",
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/preset-env": "^7.25.4",
