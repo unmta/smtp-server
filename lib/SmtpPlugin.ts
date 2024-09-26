@@ -1,5 +1,4 @@
-import { PassThrough } from 'stream';
-import { SmtpCommand, SmtpSession, SmtpPluginSession, EnvelopeAddress } from '.';
+import { SmtpCommand, SmtpSession, SmtpPluginSession, EnvelopeAddress, unfig } from '.';
 import type {
   ConnectAccept,
   ConnectDefer,
@@ -93,8 +92,9 @@ export interface SmtpPlugin {
 class SmtpPluginManager {
   private plugins: SmtpPlugin[] = [];
 
-  // Load plugins from configuration or dynamically
+  // Load plugins
   loadPlugins(plugins: SmtpPlugin[]) {
+    unfig.loadPluginConfigs(plugins);
     this.plugins.push(...plugins);
   }
 

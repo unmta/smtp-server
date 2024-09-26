@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { hostname } from 'os';
 import toml from 'toml';
-import { initializeLogger, logger } from './';
+import { initializeLogger, logger, type SmtpPlugin } from './';
 
 const unfigToml = existsSync('config/unfig.toml') ? toml.parse(readFileSync('config/unfig.toml', 'utf-8')) : {};
 const tlsCert = unfigToml.tls?.cert ? readFileSync(unfigToml.tls.cert) : null;
@@ -32,6 +32,7 @@ class Unfig {
   public readonly auth: Readonly<AuthUnfig>;
   public readonly tls: Readonly<TlsUnfig>;
   public readonly log: Readonly<LogUnfig>;
+  public readonly plugins: { [key: string]: any };
 
   constructor() {
     this.smtp = {
@@ -53,6 +54,18 @@ class Unfig {
     this.log = {
       level: unfigToml.log?.level || 'info',
     };
+    this.plugins = unfigToml.plugins || {};
+  }
+
+  // Load plugin configurations from the config directory
+  public loadPluginConfigs(plugins: SmtpPlugin[]) {
+    for (const plugin of plugins) {
+      console.log(`config/${plugin.pluginName}.toml`, existsSync(`config/${plugin.pluginName}.toml`));
+      if (existsSync(`config/${plugin.pluginName}.toml`)) {
+        const pluginConfig = toml.parse(readFileSync(`config/${plugin.pluginName}.toml`, 'utf-8'));
+        unfig.plugins[plugin.pluginName] = pluginConfig;
+      }
+    }
   }
 }
 

@@ -27,7 +27,7 @@ export class SmtpSession {
   public greetingType: 'HELO' | 'EHLO' | null; // The greeting type used by the client
   public isSecure: boolean; // Whether the connection is secured via TLS or STARTTLS
   public isAuthenticated: boolean; // Whether the client has authenticated successfully
-  public isDataMode: boolean;
+  public isDataMode: boolean; // Whether the session is in DATA mode
   public dataStream: PassThrough | null; // Incoming message data stream
   public sender: EnvelopeAddress | null;
   public recipients: EnvelopeAddress[];
@@ -60,7 +60,7 @@ export class SmtpPluginSession {
   public _greetingType: 'HELO' | 'EHLO' | null; // The greeting type used by the client
   private _isSecure: boolean; // Whether the connection is secured via TLS or STARTTLS
   private _isAuthenticated: boolean; // Whether the client has authenticated successfully
-  private _isDataMode: boolean;
+  private _isDataMode: boolean; // Whether the session is in DATA mode
   private _dataStream: PassThrough | null; // Incoming message data stream
   private _sender: EnvelopeAddress | null = null;
   private _recipients: EnvelopeAddress[] = [];
