@@ -1,3 +1,7 @@
+import 'winston';
+
+export { SmtpContext, SmtpPlugin, smtpPluginManager, SmtpPluginSession, SmtpResponse, SmtpServer } from './lib';
+
 declare module 'address-rfc2821' {
   class Address {
     constructor(user: string, host?: string);
@@ -11,5 +15,12 @@ declare module 'address-rfc2821' {
     format(use_punycode: string): string;
     address(set: string, use_punycode: boolean): string;
     toString(): string;
+  }
+}
+
+// Extend the Winston module to include the custom 'smtp' level
+declare module 'winston' {
+  interface Logger {
+    smtp: (message: string, ...meta: any[]) => Logger;
   }
 }

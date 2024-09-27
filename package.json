@@ -4,6 +4,7 @@
   "description": "A fast, modern, lightweight SMTP server, easily extendable with TypeScript and JavaScript.",
   "type": "module",
   "main": "index.ts",
+  "types": "@types/index.d.ts",
   "engines": {
     "node": ">=20"
   },
