@@ -44,6 +44,8 @@ import type {
 
 export interface SmtpPlugin {
   pluginName: string;
+  defaultConfig?: Record<string, any>;
+
   onServerStart?: (unfig: Unfig, logger: PluginLogger) => void;
   onServerStop?: (unfig: Unfig, logger: PluginLogger) => void;
   onConnect?: (

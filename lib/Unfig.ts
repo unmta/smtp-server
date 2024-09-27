@@ -57,13 +57,23 @@ export class Unfig {
     this.plugins = unfigToml.plugins || {};
   }
 
-  // Load plugin configurations from the config directory
+  // Load default plugin configuration and merge with the config file, if any
   public loadPluginConfigs(plugins: SmtpPlugin[]) {
     for (const plugin of plugins) {
-      console.log(`config/${plugin.pluginName}.toml`, existsSync(`config/${plugin.pluginName}.toml`));
+      let defaultConfig = {};
+      if (plugin.defaultConfig) {
+        defaultConfig = plugin.defaultConfig;
+      }
       if (existsSync(`config/${plugin.pluginName}.toml`)) {
+        // Load config from config/pluginName.toml, if it exists
         const pluginConfig = toml.parse(readFileSync(`config/${plugin.pluginName}.toml`, 'utf-8'));
-        unfig.plugins[plugin.pluginName] = pluginConfig;
+        unfig.plugins[plugin.pluginName] = { ...defaultConfig, ...pluginConfig };
+      } else if (unfig.plugins[plugin.pluginName]) {
+        // If the plugin is defined in the unfig.toml file, merge with the default config
+        unfig.plugins[plugin.pluginName] = { ...defaultConfig, ...unfig.plugins[plugin.pluginName] };
+      } else {
+        // Otherwise no custom config set, use default
+        unfig.plugins[plugin.pluginName] = defaultConfig;
       }
     }
   }
