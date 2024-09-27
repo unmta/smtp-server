@@ -45,7 +45,7 @@ export class SmtpServer {
   // Start the server
   public async start() {
     const smtp = this;
-    await this.plugins?.executeServerStartHooks();
+    await this.plugins?.executeServerStartHooks(unfig, logger);
 
     this.server.on('connection', async (sock: SmtpSocket | SmtpTlsSocket) => {
       activeConnections++;
@@ -590,7 +590,7 @@ export class SmtpServer {
       if (err) {
         logger.error('Error closing the server:', err);
       } else {
-        await this.plugins?.executeServerStopHooks();
+        await this.plugins?.executeServerStopHooks(unfig, logger);
         logger.info('UnMTA SMTP server stopped.');
         process.exit(0);
       }

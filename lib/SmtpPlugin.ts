@@ -1,4 +1,5 @@
-import { SmtpCommand, SmtpSession, SmtpPluginSession, EnvelopeAddress, unfig } from '.';
+import { Logger } from 'winston';
+import { SmtpCommand, SmtpSession, SmtpPluginSession, EnvelopeAddress, Unfig, PluginLogger, unfig } from '.';
 import type {
   ConnectAccept,
   ConnectDefer,
@@ -43,8 +44,8 @@ import type {
 
 export interface SmtpPlugin {
   pluginName: string;
-  onServerStart?: () => void;
-  onServerStop?: () => void;
+  onServerStart?: (unfig: Unfig, logger: PluginLogger) => void;
+  onServerStop?: (unfig: Unfig, logger: PluginLogger) => void;
   onConnect?: (
     session: SmtpPluginSession
   ) => Promise<void | ConnectAccept | ConnectDefer | ConnectReject> | void | ConnectAccept | ConnectDefer | ConnectReject;
@@ -99,19 +100,19 @@ class SmtpPluginManager {
   }
 
   // Execute Server Start hooks
-  async executeServerStartHooks() {
+  async executeServerStartHooks(unfig: Unfig, logger: Logger) {
     for (const plugin of this.plugins) {
       if (plugin.onServerStart) {
-        plugin.onServerStart();
+        plugin.onServerStart(unfig, new PluginLogger(logger, plugin.pluginName));
       }
     }
   }
 
   // Execute Server Stop hooks
-  async executeServerStopHooks() {
+  async executeServerStopHooks(unfig: Unfig, logger: Logger) {
     for (const plugin of this.plugins) {
       if (plugin.onServerStop) {
-        plugin.onServerStop();
+        plugin.onServerStop(unfig, new PluginLogger(logger, plugin.pluginName));
       }
     }
   }
