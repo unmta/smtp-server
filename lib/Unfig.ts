@@ -27,7 +27,7 @@ type LogUnfig = {
   level: 'error' | 'warn' | 'info' | 'debug' | 'smtp';
 };
 
-class Unfig {
+export class Unfig {
   public readonly smtp: Readonly<SmtpUnfig>;
   public readonly auth: Readonly<AuthUnfig>;
   public readonly tls: Readonly<TlsUnfig>;

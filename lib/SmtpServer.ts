@@ -154,7 +154,7 @@ export class SmtpServer {
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
     sock.data = { id: id, timeout: null, authenticating: false, lastDataChunks: [] };
-    const session = new SmtpSession(sock, activeConnections, phase, currentSession);
+    const session = new SmtpSession(sock, activeConnections, phase, unfig, logger, currentSession);
     sessions.set(sock.data.id, session);
     this.resetTimeout(sock); // Set the idle timeout
     return session;

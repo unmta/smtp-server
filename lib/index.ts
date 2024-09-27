@@ -1,9 +1,10 @@
 export * from './EmailAddress';
 export * from './Logger';
+export { default as PluginLogger } from './PluginLogger';
 export * from './SmtpCommand';
 export { default as SmtpContext } from './SmtpContext';
 export * from './SmtpPlugin';
 export * from './SmtpResponse';
 export { SmtpServer } from './SmtpServer';
 export { type SmtpSocket, type SmtpTlsSocket, SmtpSession, SmtpPluginSession } from './SmtpSession';
-export { unfig } from './Unfig';
+export { Unfig, unfig } from './Unfig';
