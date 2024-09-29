@@ -45,7 +45,7 @@ export class SmtpServer {
   // Start the server
   public async start() {
     const smtp = this;
-    await this.plugins?.executeServerStartHooks(unfig, logger);
+    await this.plugins?.executeServerStartHooks();
 
     this.server.on('connection', async (sock: SmtpSocket | SmtpTlsSocket) => {
       activeConnections++;
@@ -154,7 +154,7 @@ export class SmtpServer {
     if (!newConnection) this.resetTimeout(sock, true); // Clear timeout if this isn't a new connection to prevent timeouts stacking up
     // Always (re)initialize entire sock.data here.
     sock.data = { id: id, timeout: null, authenticating: false, lastDataChunks: [] };
-    const session = new SmtpSession(sock, activeConnections, phase, unfig, logger, currentSession);
+    const session = new SmtpSession(sock, activeConnections, phase, currentSession);
     sessions.set(sock.data.id, session);
     this.resetTimeout(sock); // Set the idle timeout
     return session;
@@ -590,7 +590,7 @@ export class SmtpServer {
       if (err) {
         logger.error('Error closing the server:', err);
       } else {
-        await this.plugins?.executeServerStopHooks(unfig, logger);
+        await this.plugins?.executeServerStopHooks();
         logger.info('UnMTA SMTP server stopped.');
         process.exit(0);
       }

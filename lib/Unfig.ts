@@ -58,23 +58,21 @@ export class Unfig {
   }
 
   // Load default plugin configuration and merge with the config file, if any
-  public loadPluginConfigs(plugins: SmtpPlugin[]) {
-    for (const plugin of plugins) {
-      let defaultConfig = {};
-      if (plugin.defaultConfig) {
-        defaultConfig = plugin.defaultConfig;
-      }
-      if (existsSync(`config/${plugin.pluginName}.toml`)) {
-        // Load config from config/pluginName.toml, if it exists
-        const pluginConfig = toml.parse(readFileSync(`config/${plugin.pluginName}.toml`, 'utf-8'));
-        unfig.plugins[plugin.pluginName] = { ...defaultConfig, ...pluginConfig };
-      } else if (unfig.plugins[plugin.pluginName]) {
-        // If the plugin is defined in the unfig.toml file, merge with the default config
-        unfig.plugins[plugin.pluginName] = { ...defaultConfig, ...unfig.plugins[plugin.pluginName] };
-      } else {
-        // Otherwise no custom config set, use default
-        unfig.plugins[plugin.pluginName] = defaultConfig;
-      }
+  public loadPluginConfig(plugin: Partial<SmtpPlugin>) {
+    let defaultConfig = {};
+    if (plugin.defaultConfig) {
+      defaultConfig = plugin.defaultConfig;
+    }
+    if (existsSync(`config/${plugin.constructor.name}.toml`)) {
+      // Load config from config/PluginName.toml, if it exists
+      const pluginConfig = toml.parse(readFileSync(`config/${plugin.constructor.name}.toml`, 'utf-8'));
+      unfig.plugins[plugin.constructor.name] = { ...defaultConfig, ...pluginConfig };
+    } else if (unfig.plugins[plugin.constructor.name]) {
+      // If the plugin is defined in the unfig.toml file, merge with the default config
+      unfig.plugins[plugin.constructor.name] = { ...defaultConfig, ...unfig.plugins[plugin.constructor.name] };
+    } else {
+      // Otherwise no custom config set, use default
+      unfig.plugins[plugin.constructor.name] = defaultConfig;
     }
   }
 }

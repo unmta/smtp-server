@@ -1,8 +1,7 @@
 import { Socket } from 'net';
 import { TLSSocket } from 'tls';
 import { PassThrough } from 'stream';
-import { Logger } from 'winston';
-import { EnvelopeAddress, Unfig, PluginLogger } from './';
+import { EnvelopeAddress } from './';
 
 // Data structure for the socket (an internal session store)
 interface SocketData {
@@ -32,18 +31,9 @@ export class SmtpSession {
   public dataStream: PassThrough | null; // Incoming message data stream
   public sender: EnvelopeAddress | null;
   public recipients: EnvelopeAddress[];
-  public unfig: Unfig;
-  public logger: Logger;
   public pluginData: Record<string, Record<string, any>> = {};
 
-  constructor(
-    sock: SmtpSocket | SmtpTlsSocket,
-    activeConnections: number,
-    phase: 'connection' | 'helo' = 'connection',
-    unfig: Unfig,
-    logger: Logger,
-    session: SmtpSession | null = null
-  ) {
+  constructor(sock: SmtpSocket | SmtpTlsSocket, activeConnections: number, phase: 'connection' | 'helo' = 'connection', session: SmtpSession | null = null) {
     this.id = sock.data.id;
     this.activeConnections = activeConnections;
     this.startTime = session?.startTime ? session.startTime : Date.now(); // Don't reset start time if we already have one
@@ -56,8 +46,6 @@ export class SmtpSession {
     this.dataStream = null;
     this.sender = null;
     this.recipients = [];
-    this.unfig = unfig;
-    this.logger = logger;
   }
 }
 
@@ -76,8 +64,6 @@ export class SmtpPluginSession {
   private _dataStream: PassThrough | null; // Incoming message data stream
   private _sender: EnvelopeAddress | null = null;
   private _recipients: EnvelopeAddress[] = [];
-  private _unfig: Unfig;
-  private _logger: PluginLogger;
   private _pluginName: string;
   private _pluginData: Record<string, Record<string, any>> = {};
 
@@ -94,8 +80,6 @@ export class SmtpPluginSession {
     this._dataStream = session.dataStream;
     this._sender = session.sender;
     this._recipients = session.recipients;
-    this._unfig = session.unfig;
-    this._logger = new PluginLogger(session.logger, pluginName);
     this._pluginName = pluginName;
     this._pluginData = session.pluginData;
   }
@@ -146,14 +130,6 @@ export class SmtpPluginSession {
 
   public get recipients(): EnvelopeAddress[] {
     return this._recipients;
-  }
-
-  public get unfig(): Unfig {
-    return this._unfig;
-  }
-
-  public get logger(): PluginLogger {
-    return this._logger;
   }
 
   // Method to read data set by other plugins

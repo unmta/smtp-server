@@ -1,2 +1,2 @@
 export * from './lib/SmtpResponse';
-export { smtpPluginManager, SmtpServer } from './lib';
+export { SmtpPlugin, smtpPluginManager, SmtpServer } from './lib';

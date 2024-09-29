@@ -2,12 +2,12 @@ import { Logger } from 'winston';
 
 // A wrapper around the Winston logger to provide a plugin-specific log method
 export default class PluginLogger {
-  private logger: Logger;
   private pluginName: string;
+  private logger: Logger;
 
-  constructor(logger: Logger, pluginName: string) {
-    this.logger = logger;
+  constructor(pluginName: string, logger: Logger) {
     this.pluginName = pluginName;
+    this.logger = logger;
   }
 
   private log(level: string, message: string): void {

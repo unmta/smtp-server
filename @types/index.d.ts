@@ -1,6 +1,6 @@
 import 'winston';
 
-export { SmtpContext, SmtpPlugin, smtpPluginManager, SmtpPluginSession, SmtpResponse, SmtpServer } from '../lib';
+export { SmtpPlugin, smtpPluginManager, SmtpPluginSession, SmtpResponse, SmtpServer } from '../lib';
 
 declare module 'address-rfc2821' {
   class Address {
